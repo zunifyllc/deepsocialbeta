@@ -10,6 +10,7 @@ import { RepostModal } from "./repost-modal";
 import { BookmarkButton } from "./bookmark-button";
 import { PostContent } from "./post-content";
 import { MediaGrid } from "./media-grid";
+import { PollCard } from "./poll-card";
 
 
 interface PostCardProps {
@@ -26,6 +27,8 @@ export function PostCard({ post, showReply = true, onDelete, onRepostChange, onB
   const isOwner = user?.id === post.author?.id;
 
   if (!post.author) return null;
+
+  const poll = Array.isArray(post.poll) ? post.poll[0] : post.poll;
 
   const reposter = post.repost?.repostedBy;
 
@@ -88,6 +91,8 @@ export function PostCard({ post, showReply = true, onDelete, onRepostChange, onB
 
 
           {post.media_urls && post.media_urls.length > 0 && <MediaGrid media={post.media_urls} />}
+
+          {poll && <PollCard pollId={poll.id} />}
 
           <div className="mt-3 flex max-w-md items-center justify-between text-muted-foreground">
             {showReply && (

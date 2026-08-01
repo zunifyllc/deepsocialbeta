@@ -3,7 +3,7 @@ import { useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/components/layout/app-shell";
 import { getNotifications, markNotificationRead, type Notification } from "@/lib/notifications.functions";
 import { useServerFn } from "@tanstack/react-start";
-import { Heart, MessageCircle, UserPlus , Repeat2} from "lucide-react";
+import { Heart, MessageCircle, UserPlus, Repeat2, BarChart2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 interface NotificationWithActor extends Notification {}
