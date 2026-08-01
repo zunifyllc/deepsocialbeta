@@ -288,6 +288,8 @@ export type Database = {
       }
       increment_like_count: { Args: { post_id: string }; Returns: undefined }
       increment_reply_count: { Args: { post_id: string }; Returns: undefined }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
     }
     Enums: {
       [_ in never]: never
