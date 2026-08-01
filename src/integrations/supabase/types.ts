@@ -350,6 +350,13 @@ export type Database = {
         Args: { target_user_id: string }
         Returns: string
       }
+      get_trending_hashtags: {
+        Args: { result_limit?: number }
+        Returns: {
+          hashtag: string
+          post_count: number
+        }[]
+      }
       increment_like_count: { Args: { post_id: string }; Returns: undefined }
       increment_reply_count: { Args: { post_id: string }; Returns: undefined }
       is_conversation_participant: {
