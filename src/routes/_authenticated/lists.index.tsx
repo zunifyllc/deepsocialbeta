@@ -12,7 +12,7 @@ const listsQueryOptions = () => ({
   queryFn: () => getUserLists({ data: {} }),
 });
 
-export const Route = createFileRoute("/_authenticated/lists")({
+export const Route = createFileRoute("/_authenticated/lists/")({
   head: () => ({
     meta: [
       { title: "Your Lists / DeepSocial" },
