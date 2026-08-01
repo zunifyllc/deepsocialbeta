@@ -57,6 +57,7 @@ function AuthPage() {
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        await router.navigate({ to: "/home" });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
