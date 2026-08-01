@@ -15,6 +15,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ExploreRouteImport } from './routes/explore'
 import { Route as SearchRouteImport } from './routes/search'
+import { Route as AuthenticatedBookmarksRouteImport } from './routes/_authenticated/bookmarks'
 import { Route as AuthenticatedHomeRouteImport } from './routes/_authenticated/home'
 import { Route as AuthenticatedMessagesRouteImport } from './routes/_authenticated/messages'
 import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
@@ -50,6 +51,11 @@ const SearchRoute = SearchRouteImport.update({
   path: '/search',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedBookmarksRoute = AuthenticatedBookmarksRouteImport.update({
+  id: '/bookmarks',
+  path: '/bookmarks',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedHomeRoute = AuthenticatedHomeRouteImport.update({
   id: '/home',
   path: '/home',
@@ -84,6 +90,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/explore': typeof ExploreRoute
   '/search': typeof SearchRoute
+  '/bookmarks': typeof AuthenticatedBookmarksRoute
   '/home': typeof AuthenticatedHomeRoute
   '/messages': typeof AuthenticatedMessagesRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
@@ -96,6 +103,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/explore': typeof ExploreRoute
   '/search': typeof SearchRoute
+  '/bookmarks': typeof AuthenticatedBookmarksRoute
   '/home': typeof AuthenticatedHomeRoute
   '/messages': typeof AuthenticatedMessagesRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
@@ -110,6 +118,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/explore': typeof ExploreRoute
   '/search': typeof SearchRoute
+  '/_authenticated/bookmarks': typeof AuthenticatedBookmarksRoute
   '/_authenticated/home': typeof AuthenticatedHomeRoute
   '/_authenticated/messages': typeof AuthenticatedMessagesRoute
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
@@ -124,6 +133,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/explore'
     | '/search'
+    | '/bookmarks'
     | '/home'
     | '/messages'
     | '/notifications'
@@ -136,6 +146,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/explore'
     | '/search'
+    | '/bookmarks'
     | '/home'
     | '/messages'
     | '/notifications'
@@ -149,6 +160,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/explore'
     | '/search'
+    | '/_authenticated/bookmarks'
     | '/_authenticated/home'
     | '/_authenticated/messages'
     | '/_authenticated/notifications'
@@ -210,6 +222,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SearchRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/bookmarks': {
+      id: '/_authenticated/bookmarks'
+      path: '/bookmarks'
+      fullPath: '/bookmarks'
+      preLoaderRoute: typeof AuthenticatedBookmarksRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/home': {
       id: '/_authenticated/home'
       path: '/home'
@@ -249,6 +268,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedBookmarksRoute: typeof AuthenticatedBookmarksRoute
   AuthenticatedHomeRoute: typeof AuthenticatedHomeRoute
   AuthenticatedMessagesRoute: typeof AuthenticatedMessagesRoute
   AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
@@ -256,6 +276,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedBookmarksRoute: AuthenticatedBookmarksRoute,
   AuthenticatedHomeRoute: AuthenticatedHomeRoute,
   AuthenticatedMessagesRoute: AuthenticatedMessagesRoute,
   AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
@@ -277,13 +298,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
