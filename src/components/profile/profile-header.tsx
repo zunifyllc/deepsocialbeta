@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { useAuth } from "@/hooks/use-auth";
 import { FollowButton } from "./follow-button";
 import { MessageButton } from "@/components/messages/message-button";
+import { AddToListMenu } from "@/components/lists/add-to-list-menu";
 import { Button } from "@/components/ui/button";
 
 interface Profile {
@@ -89,6 +90,7 @@ export function ProfileHeader({
             </Link>
           ) : (
             <>
+              <AddToListMenu userId={profile.id} />
               <MessageButton userId={profile.id} />
               <FollowButton userId={profile.id} />
             </>
