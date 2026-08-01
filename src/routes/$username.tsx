@@ -10,6 +10,7 @@ import { getFollowCounts } from "@/lib/follows.functions";
 import { getUserReposts } from "@/lib/reposts.functions";
 import type { ProfileTab } from "@/components/profile/profile-header";
 import { useServerFn } from "@tanstack/react-start";
+import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/$username")({
   head: () => ({
@@ -58,6 +59,7 @@ const followCountsQueryOptions = (userId: string) => ({
 
 function ProfilePage() {
   const { profile } = Route.useLoaderData();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<ProfileTab>("posts");
   const queryClient = useQueryClient();
   const { data: posts } = useSuspenseQuery(userPostsQueryOptions(profile.id));
