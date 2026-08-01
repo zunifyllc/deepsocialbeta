@@ -22,7 +22,8 @@ export function Sidebar() {
     <div className="hidden h-full flex-col justify-between border-r border-border bg-background px-2 py-4 md:flex lg:px-4">
       <div className="flex flex-col gap-2">
         <Link to="/home" className="mb-4 flex items-center gap-3 rounded-full p-3 transition-colors hover:bg-accent lg:justify-start">
-          <X className="h-8 w-8 text-foreground" />
+          <Waves className="h-8 w-8 shrink-0 text-primary" />
+          <span className="hidden text-xl font-bold tracking-tight lg:inline">DeepSocial</span>
         </Link>
 
         {navItems.map((item) => {
