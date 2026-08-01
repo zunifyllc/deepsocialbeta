@@ -79,9 +79,10 @@ export function PostCard({ post, showReply = true, onDelete, onRepostChange, onB
             </Link>
           </div>
 
-          <Link to="/post/$postId" params={{ postId: post.id }} className="mt-1 block whitespace-pre-wrap text-[15px] leading-normal">
-            {post.content}
-          </Link>
+          <p className="mt-1 block whitespace-pre-wrap text-[15px] leading-normal">
+            <PostContent content={post.content} />
+          </p>
+
 
           {post.media_urls && post.media_urls.length > 0 && (
             <div className={`mt-3 grid gap-0.5 overflow-hidden rounded-2xl border border-border ${getGridClass(post.media_urls.length)}`}>
