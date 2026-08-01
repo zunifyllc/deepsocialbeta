@@ -1,0 +1,80 @@
+import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { createPublicClient } from "./supabase-public";
+
+export const toggleFollow = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input) => z.object({ followingId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    if (data.followingId === context.userId) {
+      throw new Error("Cannot follow yourself");
+    }
+
+    const { data: existing } = await context.supabase
+      .from("follows")
+      .select("id")
+      .eq("follower_id", context.userId)
+      .eq("following_id", data.followingId)
+      .maybeSingle();
+
+    if (existing) {
+      const { error } = await context.supabase.from("follows").delete().eq("id", existing.id);
+      if (error) throw error;
+      return { following: false };
+    }
+
+    const { error } = await context.supabase.from("follows").insert({
+      follower_id: context.userId,
+      following_id: data.followingId,
+    });
+    if (error) throw error;
+
+    // Create notification
+    await context.supabase.from("notifications").insert({
+      user_id: data.followingId,
+      actor_id: context.userId,
+      type: "follow",
+    });
+
+    return { following: true };
+  });
+
+export const getFollowStatus = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((input) => z.object({ followingId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { data: existing, error } = await context.supabase
+      .from("follows")
+      .select("id")
+      .eq("follower_id", context.userId)
+      .eq("following_id", data.followingId)
+      .maybeSingle();
+    if (error) throw error;
+    return { following: !!existing };
+  });
+
+export const getFollowCounts = createServerFn({ method: "GET" })
+  .validator((input) => z.object({ userId: z.string().uuid() }).parse(input))
+  .handler(async ({ data }) => {
+    const supabase = createPublicClient();
+    const { data: counts, error } = await supabase.rpc("get_follow_counts", { user_uuid: data.userId });
+    if (error) throw error;
+    const result = Array.isArray(counts) ? counts[0] : counts;
+    return {
+      following: result?.following_count ?? 0,
+      followers: result?.followers_count ?? 0,
+    };
+  });
+
+export const getSuggestedUsers = createServerFn({ method: "GET" })
+  .validator((input) => z.object({ limit: z.number().min(1).max(20).default(5) }).parse(input))
+  .handler(async ({ data }) => {
+    const supabase = createPublicClient();
+    const { data: users, error } = await supabase
+      .from("profiles")
+      .select("id, username, display_name, avatar_url, bio")
+      .limit(data.limit);
+    if (error) throw error;
+    return users ?? [];
+  });

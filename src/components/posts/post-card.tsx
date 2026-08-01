@@ -1,0 +1,130 @@
+import { Link } from "@tanstack/react-router";
+import { MessageCircle, Repeat2, Share, Trash2 } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { useAuth } from "@/hooks/use-auth";
+import type { Post } from "@/lib/posts.functions";
+import { LikeButton } from "./like-button";
+
+interface PostCardProps {
+  post: Post;
+  showReply?: boolean;
+  onDelete?: (id: string) => void;
+}
+
+export function PostCard({ post, showReply = true, onDelete }: PostCardProps) {
+  const { user } = useAuth();
+  const isOwner = user?.id === post.author?.id;
+
+  if (!post.author) return null;
+
+  return (
+    <article className="border-b border-border px-4 py-3 transition-colors hover:bg-muted/20">
+      <div className="flex gap-3">
+        <Link to="/$username" params={{ username: post.author.username }} className="flex-shrink-0">
+          <div className="h-10 w-10 overflow-hidden rounded-full bg-muted">
+            {post.author.avatar_url ? (
+              <img src={post.author.avatar_url} alt={post.author.display_name ?? post.author.username} className="h-full w-full object-cover" />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-sm font-bold text-muted-foreground">
+                {(post.author.display_name ?? post.author.username).charAt(0).toUpperCase()}
+              </div>
+            )}
+          </div>
+        </Link>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1">
+            <Link
+              to="/$username"
+              params={{ username: post.author.username }}
+              className="truncate font-bold hover:underline"
+            >
+              {post.author.display_name ?? post.author.username}
+            </Link>
+            {post.author.is_verified && (
+              <svg className="h-4 w-4 flex-shrink-0 text-primary" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+              </svg>
+            )}
+            <span className="truncate text-sm text-muted-foreground">@{post.author.username}</span>
+            <span className="text-muted-foreground">·</span>
+            <Link
+              to="/post/$postId"
+              params={{ postId: post.id }}
+              className="text-sm text-muted-foreground hover:underline"
+            >
+              {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
+            </Link>
+          </div>
+
+          <Link to="/post/$postId" params={{ postId: post.id }} className="mt-1 block whitespace-pre-wrap text-[15px] leading-normal">
+            {post.content}
+          </Link>
+
+          {post.media_urls && post.media_urls.length > 0 && (
+            <div className={`mt-3 grid gap-0.5 overflow-hidden rounded-2xl border border-border ${getGridClass(post.media_urls.length)}`}>
+              {post.media_urls.map((url, i) => (
+                <img key={i} src={url} alt="" className="h-full w-full object-cover" />
+              ))}
+            </div>
+          )}
+
+          <div className="mt-3 flex max-w-md items-center justify-between text-muted-foreground">
+            {showReply && (
+              <Link
+                to="/post/$postId"
+                params={{ postId: post.id }}
+                className="group flex items-center gap-2 transition-colors hover:text-primary"
+              >
+                <div className="rounded-full p-2 group-hover:bg-primary/10">
+                  <MessageCircle className="h-4 w-4" />
+                </div>
+                <span className="text-sm">{formatCount(post.reply_count)}</span>
+              </Link>
+            )}
+
+            <button className="group flex items-center gap-2 transition-colors hover:text-green-500">
+              <div className="rounded-full p-2 group-hover:bg-green-500/10">
+                <Repeat2 className="h-4 w-4" />
+              </div>
+              <span className="text-sm">{formatCount(post.repost_count)}</span>
+            </button>
+
+            <LikeButton postId={post.id} initialLikes={post.like_count} />
+
+            <button className="group flex items-center gap-2 transition-colors hover:text-primary">
+              <div className="rounded-full p-2 group-hover:bg-primary/10">
+                <Share className="h-4 w-4" />
+              </div>
+            </button>
+
+            {isOwner && onDelete && (
+              <button
+                onClick={() => onDelete(post.id)}
+                className="group flex items-center gap-2 transition-colors hover:text-destructive"
+              >
+                <div className="rounded-full p-2 group-hover:bg-destructive/10">
+                  <Trash2 className="h-4 w-4" />
+                </div>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function getGridClass(count: number) {
+  if (count === 1) return "grid-cols-1";
+  if (count === 2) return "grid-cols-2 grid-rows-1";
+  if (count === 3) return "grid-cols-2 grid-rows-2 [&>*:first-child]:row-span-2";
+  return "grid-cols-2 grid-rows-2";
+}
+
+function formatCount(n: number) {
+  if (n === 0) return "";
+  if (n < 1000) return String(n);
+  if (n < 1_000_000) return `${(n / 1000).toFixed(1)}K`;
+  return `${(n / 1_000_000).toFixed(1)}M`;
+}
