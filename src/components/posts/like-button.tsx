@@ -39,6 +39,7 @@ export function LikeButton({ postId, initialLikes }: LikeButtonProps) {
 
   return (
     <button
+      data-testid="like-button"
       onClick={handleClick}
       disabled={!user || isLoading}
       className={`group flex items-center gap-2 transition-colors ${
