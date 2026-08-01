@@ -9,6 +9,7 @@ import { RepostButton } from "./repost-button";
 import { RepostModal } from "./repost-modal";
 import { BookmarkButton } from "./bookmark-button";
 import { PostContent } from "./post-content";
+import { MediaGrid } from "./media-grid";
 
 
 interface PostCardProps {
@@ -86,13 +87,7 @@ export function PostCard({ post, showReply = true, onDelete, onRepostChange, onB
           </p>
 
 
-          {post.media_urls && post.media_urls.length > 0 && (
-            <div className={`mt-3 grid gap-0.5 overflow-hidden rounded-2xl border border-border ${getGridClass(post.media_urls.length)}`}>
-              {post.media_urls.map((url, i) => (
-                <img key={i} src={url} alt="" className="h-full w-full object-cover" />
-              ))}
-            </div>
-          )}
+          {post.media_urls && post.media_urls.length > 0 && <MediaGrid media={post.media_urls} />}
 
           <div className="mt-3 flex max-w-md items-center justify-between text-muted-foreground">
             {showReply && (
@@ -149,12 +144,6 @@ export function PostCard({ post, showReply = true, onDelete, onRepostChange, onB
   );
 }
 
-function getGridClass(count: number) {
-  if (count === 1) return "grid-cols-1";
-  if (count === 2) return "grid-cols-2 grid-rows-1";
-  if (count === 3) return "grid-cols-2 grid-rows-2 [&>*:first-child]:row-span-2";
-  return "grid-cols-2 grid-rows-2";
-}
 
 function formatCount(n: number) {
   if (n === 0) return "";
