@@ -20,16 +20,16 @@ export interface UserList {
   creator?: ListMember | null;
 }
 
-export const LIST_WITH_CREATOR = `
+export const LIST_COLUMNS = `
   id,
   creator_id,
   name,
   description,
   is_public,
   created_at,
-  updated_at,
-  creator:profiles!lists_creator_id_fkey(id, username, display_name, avatar_url, is_verified)
+  updated_at
 `;
+
 
 export const createListSchema = z.object({
   name: z.string().trim().min(1).max(60),
