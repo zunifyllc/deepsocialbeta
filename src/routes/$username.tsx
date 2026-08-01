@@ -12,10 +12,10 @@ import { useServerFn } from "@tanstack/react-start";
 export const Route = createFileRoute("/$username")({
   head: () => ({
     meta: [
-      { title: "Profile / X Clone" },
-      { name: "description", content: "View profile on X Clone." },
-      { property: "og:title", content: "Profile / X Clone" },
-      { property: "og:description", content: "View profile on X Clone." },
+      { title: "Profile / DeepSocial" },
+      { name: "description", content: "View profile on DeepSocial." },
+      { property: "og:title", content: "Profile / DeepSocial" },
+      { property: "og:description", content: "View profile on DeepSocial." },
     ],
   }),
   loader: async ({ params, context }) => {

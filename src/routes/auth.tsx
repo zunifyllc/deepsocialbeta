@@ -15,8 +15,8 @@ export const Route = createFileRoute("/auth")({
   },
   head: () => ({
     meta: [
-      { title: "Sign in / Sign up — X Clone" },
-      { name: "description", content: "Sign in or create an account on X Clone." },
+      { title: "Sign in / Sign up — DeepSocial" },
+      { name: "description", content: "Sign in or create an account on DeepSocial." },
     ],
   }),
   component: AuthPage,

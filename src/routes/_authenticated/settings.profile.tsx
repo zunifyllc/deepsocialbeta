@@ -14,8 +14,8 @@ import { useServerFn } from "@tanstack/react-start";
 export const Route = createFileRoute("/_authenticated/settings/profile")({
   head: () => ({
     meta: [
-      { title: "Edit profile / X Clone" },
-      { name: "description", content: "Edit your X Clone profile." },
+      { title: "Edit profile / DeepSocial" },
+      { name: "description", content: "Edit your DeepSocial profile." },
     ],
   }),
   loader: () => getCurrentProfile(),

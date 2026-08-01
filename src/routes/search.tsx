@@ -6,8 +6,8 @@ import { Search } from "lucide-react";
 export const Route = createFileRoute("/search")({
   head: () => ({
     meta: [
-      { title: "Search / X Clone" },
-      { name: "description", content: "Search X Clone." },
+      { title: "Search / DeepSocial" },
+      { name: "description", content: "Search DeepSocial." },
     ],
   }),
   component: SearchPage,
@@ -25,7 +25,7 @@ function SearchPage() {
       <div className="flex h-[calc(100vh-120px)] flex-col items-center justify-center px-4 text-center text-muted-foreground">
         <Search className="h-12 w-12" />
         <p className="mt-4 text-2xl font-bold text-foreground">
-          {query ? `No results for "${query}"` : "Search X Clone"}
+          {query ? `No results for "${query}"` : "Search DeepSocial"}
         </p>
         <p className="mt-2 max-w-sm">Full search is coming soon. Try Explore to discover posts.</p>
       </div>

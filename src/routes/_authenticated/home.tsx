@@ -10,8 +10,8 @@ import { useServerFn } from "@tanstack/react-start";
 export const Route = createFileRoute("/_authenticated/home")({
   head: () => ({
     meta: [
-      { title: "Home / X Clone" },
-      { name: "description", content: "Your personalized timeline on X Clone." },
+      { title: "Home / DeepSocial" },
+      { name: "description", content: "Your personalized timeline on DeepSocial." },
     ],
   }),
   loader: ({ context }) => context.queryClient.ensureQueryData(feedQueryOptions()),
