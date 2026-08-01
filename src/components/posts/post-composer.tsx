@@ -132,6 +132,7 @@ export function PostComposer({
                 {remaining < 0 ? remaining : remaining < 20 ? remaining : ""}
               </span>
               <Button
+                data-testid="post-composer-submit"
                 onClick={handleSubmit}
                 disabled={!canSubmit}
                 className="rounded-full bg-primary px-5 font-bold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
