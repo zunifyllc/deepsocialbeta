@@ -79,8 +79,8 @@ function AuthPage() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
-          <Waves className="mx-auto h-12 w-12 text-foreground" />
-          <h1 className="mt-6 text-3xl font-bold">Happening now</h1>
+          <Waves className="mx-auto h-12 w-12 text-primary" />
+          <h1 className="mt-6 text-3xl font-bold">Welcome to DeepSocial</h1>
           <p className="mt-2 text-muted-foreground">Join today.</p>
         </div>
 
