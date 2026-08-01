@@ -37,7 +37,7 @@ export interface Post {
 const createPostSchema = z.object({
   content: z.string().min(1).max(280),
   parentPostId: z.string().uuid().optional(),
-  mediaUrls: z.array(z.string().url()).max(4).default([]),
+  mediaUrls: z.array(z.string().min(1).max(500)).max(4).default([]),
 });
 
 export const getFeed = createServerFn({ method: "GET" })
