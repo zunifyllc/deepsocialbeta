@@ -206,3 +206,24 @@ export const deletePost = createServerFn({ method: "POST" })
     if (error) throw error;
     return { success: true };
   });
+
+/**
+ * Posts liked by a user. Likes are private (RLS scopes reads to the owner),
+ * so this only returns rows when a user requests their own likes.
+ */
+export const getUserLikedPosts = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((input) => z.object({ userId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    if (data.userId !== context.userId) return [] as Post[];
+    const { data: rows, error } = await context.supabase
+      .from("likes")
+      .select(`created_at, post:posts!likes_post_id_fkey(${POST_WITH_AUTHOR})`)
+      .eq("user_id", context.userId)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (error) throw error;
+    return ((rows ?? [])
+      .map((row) => (row as unknown as { post: Post | null }).post)
+      .filter(Boolean)) as Post[];
+  });

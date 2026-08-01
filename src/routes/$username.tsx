@@ -5,11 +5,12 @@ import { AppShell } from "@/components/layout/app-shell";
 import { ProfileHeader } from "@/components/profile/profile-header";
 import { PostCard } from "@/components/posts/post-card";
 import { getProfileByUsername, getPinnedPost } from "@/lib/profiles.functions";
-import { getUserPosts, deletePost } from "@/lib/posts.functions";
+import { getUserPosts, getUserLikedPosts, deletePost } from "@/lib/posts.functions";
 import { getFollowCounts } from "@/lib/follows.functions";
 import { getUserReposts } from "@/lib/reposts.functions";
 import type { ProfileTab } from "@/components/profile/profile-header";
 import { useServerFn } from "@tanstack/react-start";
+import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/$username")({
   head: () => ({
@@ -45,6 +46,12 @@ const pinnedPostQueryOptions = (userId: string) => ({
   queryFn: () => getPinnedPost({ data: { userId } }),
 });
 
+const likedPostsQueryOptions = (userId: string, enabled: boolean) => ({
+  queryKey: ["user-likes", userId],
+  queryFn: () => getUserLikedPosts({ data: { userId } }),
+  enabled,
+});
+
 const followCountsQueryOptions = (userId: string) => ({
   queryKey: ["follow-counts", userId],
   queryFn: () => getFollowCounts({ data: { userId } }),
@@ -52,12 +59,15 @@ const followCountsQueryOptions = (userId: string) => ({
 
 function ProfilePage() {
   const { profile } = Route.useLoaderData();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<ProfileTab>("posts");
   const queryClient = useQueryClient();
   const { data: posts } = useSuspenseQuery(userPostsQueryOptions(profile.id));
   const { data: counts } = useSuspenseQuery(followCountsQueryOptions(profile.id));
   const { data: reposts } = useQuery(userRepostsQueryOptions(profile.id));
   const { data: pinnedPost } = useQuery(pinnedPostQueryOptions(profile.id));
+  const isOwnProfile = user?.id === profile.id;
+  const { data: likedPosts } = useQuery(likedPostsQueryOptions(profile.id, activeTab === "likes" && isOwnProfile));
   const remove = useServerFn(deletePost);
 
   const handleDelete = async (id: string) => {
@@ -82,7 +92,7 @@ function ProfilePage() {
       : activeTab === "media"
       ? posts?.filter((p) => p.media_urls && p.media_urls.length > 0)
       : activeTab === "likes"
-      ? []
+      ? likedPosts ?? []
       : posts;
 
   return (
@@ -106,9 +116,10 @@ function ProfilePage() {
             onRepostChange={invalidateFeeds}
           />
         )}
-        {activeTab === "likes" ? (
+        {activeTab === "likes" && !isOwnProfile ? (
           <div className="p-8 text-center text-muted-foreground">
-            <p className="text-xl font-bold">No liked posts yet</p>
+            <p className="text-xl font-bold">Likes are private</p>
+            <p className="mt-2">Only {profile.username} can see the posts they liked.</p>
           </div>
         ) : (
           filteredPosts?.map((post) => (
@@ -121,7 +132,7 @@ function ProfilePage() {
             />
           ))
         )}
-        {filteredPosts?.length === 0 && activeTab !== "likes" && (
+        {filteredPosts?.length === 0 && (activeTab !== "likes" || isOwnProfile) && (
           <div className="p-8 text-center text-muted-foreground">
             <p className="text-xl font-bold">No posts yet</p>
             <p className="mt-2">

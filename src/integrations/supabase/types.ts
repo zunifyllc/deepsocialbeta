@@ -426,6 +426,7 @@ export type Database = {
           is_verified: boolean
           location: string | null
           pinned_post_id: string | null
+          pronouns: string | null
           updated_at: string
           username: string
           website: string | null
@@ -440,6 +441,7 @@ export type Database = {
           is_verified?: boolean
           location?: string | null
           pinned_post_id?: string | null
+          pronouns?: string | null
           updated_at?: string
           username: string
           website?: string | null
@@ -454,6 +456,7 @@ export type Database = {
           is_verified?: boolean
           location?: string | null
           pinned_post_id?: string | null
+          pronouns?: string | null
           updated_at?: string
           username?: string
           website?: string | null

@@ -12,6 +12,7 @@ export interface Profile {
   bio: string | null;
   location: string | null;
   website: string | null;
+  pronouns: string | null;
   avatar_url: string | null;
   banner_url: string | null;
   pinned_post_id: string | null;
@@ -20,12 +21,13 @@ export interface Profile {
 }
 
 const profileSchema = z.object({
-  display_name: z.string().max(50).optional(),
-  bio: z.string().max(160).optional(),
-  location: z.string().max(30).optional(),
-  website: z.string().max(100).optional(),
-  avatar_url: z.string().url().optional(),
-  banner_url: z.string().url().optional(),
+  display_name: z.string().max(50).nullish(),
+  bio: z.string().max(160).nullish(),
+  location: z.string().max(30).nullish(),
+  website: z.string().max(100).nullish(),
+  pronouns: z.string().max(20).nullish(),
+  avatar_url: z.string().url().nullish(),
+  banner_url: z.string().url().nullish(),
 });
 
 export const getProfileByUsername = createServerFn({ method: "GET" })
@@ -62,6 +64,7 @@ export const updateProfile = createServerFn({ method: "POST" })
       bio: data.bio ?? null,
       location: data.location ?? null,
       website: data.website ?? null,
+      pronouns: data.pronouns?.trim() ? data.pronouns.trim() : null,
       avatar_url: data.avatar_url ?? null,
       banner_url: data.banner_url ?? null,
     };
