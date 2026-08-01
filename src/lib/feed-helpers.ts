@@ -83,3 +83,12 @@ export function mergeFeedItems<T extends { id: string; created_at: string; repos
     .sort((a, b) => new Date(stamp(b as T)).getTime() - new Date(stamp(a as T)).getTime())
     .slice(0, limit) as T[];
 }
+
+/** Live repost count for a post, read from the reposts table. */
+export async function readRepostCount(supabase: Client, postId: string): Promise<number> {
+  const { count } = await supabase
+    .from("reposts")
+    .select("id", { count: "exact", head: true })
+    .eq("post_id", postId);
+  return count ?? 0;
+}

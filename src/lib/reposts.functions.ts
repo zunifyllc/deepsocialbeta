@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { createPublicClient } from "./supabase-public";
-import { fetchRepostFeedItems, REPOST_WITH_POST } from "./feed-helpers";
+import { fetchRepostFeedItems, readRepostCount, REPOST_WITH_POST } from "./feed-helpers";
 import type { Post, PostAuthor } from "./posts.functions";
 
 export interface RepostUser {
@@ -15,15 +15,13 @@ export interface RepostUser {
   created_at: string;
 }
 
-const quoteSchema = z.string().trim().min(1).max(280);
-
 export const toggleRepost = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input) =>
     z
       .object({
         postId: z.string().uuid(),
-        quoteContent: quoteSchema.optional(),
+        quoteContent: z.string().trim().min(1).max(280).optional(),
       })
       .parse(input),
   )
@@ -129,14 +127,3 @@ export const getUserReposts = createServerFn({ method: "GET" })
     });
     return items as unknown as Post[];
   });
-
-async function readRepostCount(
-  supabase: Parameters<typeof fetchRepostFeedItems>[0],
-  postId: string,
-): Promise<number> {
-  const { count } = await supabase
-    .from("reposts")
-    .select("id", { count: "exact", head: true })
-    .eq("post_id", postId);
-  return count ?? 0;
-}
