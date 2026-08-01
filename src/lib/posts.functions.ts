@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { createPublicClient } from "./supabase-public";
 import { fetchRepostFeedItems, mergeFeedItems, POST_WITH_AUTHOR } from "./feed-helpers";
+import { hoursToInterval, pollInputSchema } from "./poll-helpers";
 
 export interface PostAuthor {
   id: string;
@@ -30,6 +31,8 @@ export interface Post {
     quote_content: string | null;
     repostedBy: PostAuthor;
   } | null;
+  /** Attached poll, when the post has one. */
+  poll?: { id: string } | { id: string }[] | null;
   /** Stable key for feed rendering (a post can appear once per reposter). */
   feedKey?: string;
 }
@@ -38,6 +41,7 @@ const createPostSchema = z.object({
   content: z.string().min(1).max(280),
   parentPostId: z.string().uuid().optional(),
   mediaUrls: z.array(z.string().min(1).max(500)).max(4).default([]),
+  poll: pollInputSchema.optional(),
 });
 
 export const getFeed = createServerFn({ method: "GET" })
@@ -159,7 +163,35 @@ export const createPost = createServerFn({ method: "POST" })
       .select(POST_WITH_AUTHOR)
       .single();
     if (error) throw error;
-    return post as unknown as Post;
+
+    const created = post as unknown as Post;
+
+    if (data.poll) {
+      const { data: poll, error: pollError } = await context.supabase
+        .from("polls")
+        .insert({ post_id: created.id, duration: hoursToInterval(data.poll.durationHours) })
+        .select("id")
+        .single();
+      if (pollError) {
+        // Keep the post/poll pair consistent: drop the post if the poll fails.
+        await context.supabase.from("posts").delete().eq("id", created.id);
+        throw pollError;
+      }
+      const { error: optionsError } = await context.supabase.from("poll_options").insert(
+        data.poll.options.map((content, index) => ({
+          poll_id: poll.id,
+          content,
+          position: index + 1,
+        })),
+      );
+      if (optionsError) {
+        await context.supabase.from("posts").delete().eq("id", created.id);
+        throw optionsError;
+      }
+      created.poll = { id: poll.id };
+    }
+
+    return created;
   });
 
 export const deletePost = createServerFn({ method: "POST" })

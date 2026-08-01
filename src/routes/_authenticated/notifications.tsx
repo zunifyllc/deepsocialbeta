@@ -3,7 +3,7 @@ import { useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/components/layout/app-shell";
 import { getNotifications, markNotificationRead, type Notification } from "@/lib/notifications.functions";
 import { useServerFn } from "@tanstack/react-start";
-import { Heart, MessageCircle, UserPlus , Repeat2} from "lucide-react";
+import { Heart, MessageCircle, UserPlus, Repeat2, BarChart2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 interface NotificationWithActor extends Notification {}
@@ -54,6 +54,7 @@ function NotificationsPage() {
               {n.type === "reply" && <MessageCircle className="h-6 w-6 text-primary" />}
               {n.type === "follow" && <UserPlus className="h-6 w-6 text-green-500" />}
               {n.type === "repost" && <Repeat2 className="h-6 w-6 text-green-500" />}
+              {n.type === "poll_vote" && <BarChart2 className="h-6 w-6 text-primary" />}
             </div>
             <div className="flex-1">
               <div className="h-8 w-8 overflow-hidden rounded-full bg-muted">
@@ -71,6 +72,7 @@ function NotificationsPage() {
                 {n.type === "reply" && "replied to your post"}
                 {n.type === "follow" && "followed you"}
                 {n.type === "repost" && "reposted your post"}
+                {n.type === "poll_vote" && "voted in your poll"}
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
                 {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}

@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from "react";
-import { Image as ImageIcon, X, Loader2 } from "lucide-react";
+import { Image as ImageIcon, X, Loader2, BarChart2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/use-auth";
 import { useServerFn } from "@tanstack/react-start";
 import { createPost } from "@/lib/posts.functions";
+import { PollComposer, type PollDraft } from "./poll-composer";
 import {
   ALLOWED_MEDIA_TYPES,
   MAX_MEDIA_PER_POST,
@@ -40,6 +41,7 @@ export function PostComposer({
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [poll, setPoll] = useState<PollDraft | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const submit = useServerFn(createPost);
 
@@ -54,7 +56,10 @@ export function PostComposer({
 
   const isUploading = media.some((item) => item.uploading);
   const remaining = 280 - content.length;
-  const canSubmit = content.trim().length > 0 && content.length <= 280 && !isUploading && !isSubmitting;
+  const pollOptions = poll ? poll.options.map((o) => o.trim()).filter(Boolean) : [];
+  const pollValid = !poll || pollOptions.length >= 2;
+  const canSubmit =
+    content.trim().length > 0 && content.length <= 280 && !isUploading && !isSubmitting && pollValid;
 
   const addFiles = async (fileList: FileList | File[]) => {
     setError(null);
@@ -101,10 +106,18 @@ export function PostComposer({
     setIsSubmitting(true);
     try {
       const mediaUrls = media.map((item) => item.path).filter((p): p is string => Boolean(p));
-      await submit({ data: { content: content.trim(), parentPostId, mediaUrls } });
+      await submit({
+        data: {
+          content: content.trim(),
+          parentPostId,
+          mediaUrls,
+          ...(poll ? { poll: { options: pollOptions, durationHours: poll.durationHours } } : {}),
+        },
+      });
       media.forEach((item) => URL.revokeObjectURL(item.previewUrl));
       setContent("");
       setMedia([]);
+      setPoll(null);
       setError(null);
       onSuccess?.();
     } catch {
@@ -174,6 +187,16 @@ export function PostComposer({
             </div>
           )}
 
+          {poll && (
+            <PollComposer draft={poll} onChange={setPoll} onRemove={() => setPoll(null)} />
+          )}
+
+          {poll && !pollValid && (
+            <p role="alert" className="mt-2 text-sm text-destructive">
+              Add at least 2 choices to your poll.
+            </p>
+          )}
+
           {error && (
             <p role="alert" className="mt-2 text-sm text-destructive">
               {error}
@@ -205,6 +228,19 @@ export function PostComposer({
               <span className="text-xs text-muted-foreground">
                 {media.length}/{MAX_MEDIA_PER_POST}
               </span>
+              {!parentPostId && (
+                <button
+                  type="button"
+                  aria-label="Add poll"
+                  data-testid="composer-add-poll"
+                  onClick={() =>
+                    setPoll((prev) => (prev ? null : { options: ["", ""], durationHours: 24 }))
+                  }
+                  className={`rounded-full p-2 transition-colors hover:bg-primary/10 ${poll ? "bg-primary/10 text-primary" : "text-primary"}`}
+                >
+                  <BarChart2 className="h-5 w-5" />
+                </button>
+              )}
             </div>
 
             <div className="flex items-center gap-4">

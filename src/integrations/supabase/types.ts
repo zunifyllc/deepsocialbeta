@@ -198,6 +198,106 @@ export type Database = {
           },
         ]
       }
+      poll_options: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          poll_id: string
+          position: number
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          poll_id: string
+          position: number
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          poll_id?: string
+          position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "poll_options_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "polls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      poll_votes: {
+        Row: {
+          created_at: string
+          id: string
+          option_id: string
+          poll_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          option_id: string
+          poll_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          option_id?: string
+          poll_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "poll_votes_option_id_fkey"
+            columns: ["option_id"]
+            isOneToOne: false
+            referencedRelation: "poll_options"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "poll_votes_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "polls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      polls: {
+        Row: {
+          created_at: string
+          duration: string | null
+          id: string
+          post_id: string
+        }
+        Insert: {
+          created_at?: string
+          duration?: string | null
+          id?: string
+          post_id: string
+        }
+        Update: {
+          created_at?: string
+          duration?: string | null
+          id?: string
+          post_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "polls_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: true
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       posts: {
         Row: {
           author_id: string
@@ -363,6 +463,7 @@ export type Database = {
         Args: { _conversation_id: string; _user_id: string }
         Returns: boolean
       }
+      is_poll_open: { Args: { _poll_id: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
