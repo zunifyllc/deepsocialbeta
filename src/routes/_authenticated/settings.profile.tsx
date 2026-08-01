@@ -29,6 +29,7 @@ function EditProfilePage() {
   const [bio, setBio] = useState(profile?.bio ?? "");
   const [location, setLocation] = useState(profile?.location ?? "");
   const [website, setWebsite] = useState(profile?.website ?? "");
+  const [pronouns, setPronouns] = useState(profile?.pronouns ?? "");
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url ?? "");
   const [bannerUrl, setBannerUrl] = useState(profile?.banner_url ?? "");
   const [isLoading, setIsLoading] = useState(false);
@@ -44,6 +45,7 @@ function EditProfilePage() {
       setBio(authProfile.bio ?? "");
       setLocation(authProfile.location ?? "");
       setWebsite(authProfile.website ?? "");
+      setPronouns(authProfile.pronouns ?? "");
       setAvatarUrl(authProfile.avatar_url ?? "");
       setBannerUrl(authProfile.banner_url ?? "");
     }
@@ -83,6 +85,7 @@ function EditProfilePage() {
           bio: bio || null,
           location: location || null,
           website: website || null,
+          pronouns: pronouns || null,
           avatar_url: avatarUrl || null,
           banner_url: bannerUrl || null,
         },
@@ -166,6 +169,18 @@ function EditProfilePage() {
             maxLength={160}
             rows={3}
             className="rounded-md border-border bg-background resize-none"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="pronouns">Pronouns</Label>
+          <Input
+            id="pronouns"
+            value={pronouns}
+            onChange={(e) => setPronouns(e.target.value)}
+            maxLength={20}
+            placeholder="she/her"
+            className="rounded-md border-border bg-background"
           />
         </div>
 

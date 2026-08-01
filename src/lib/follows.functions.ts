@@ -51,7 +51,16 @@ export const getFollowStatus = createServerFn({ method: "GET" })
       .eq("following_id", data.followingId)
       .maybeSingle();
     if (error) throw error;
-    return { following: !!existing };
+
+    const { data: reverse, error: reverseError } = await context.supabase
+      .from("follows")
+      .select("id")
+      .eq("follower_id", data.followingId)
+      .eq("following_id", context.userId)
+      .maybeSingle();
+    if (reverseError) throw reverseError;
+
+    return { following: !!existing, followedBy: !!reverse };
   });
 
 export const getFollowCounts = createServerFn({ method: "GET" })
