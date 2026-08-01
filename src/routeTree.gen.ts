@@ -21,6 +21,7 @@ import { Route as AuthenticatedMessagesRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
 import { Route as PostPostIdRouteImport } from './routes/post.$postId'
 import { Route as AuthenticatedListsIndexRouteImport } from './routes/_authenticated/lists.index'
+import { Route as AuthenticatedListsListIdRouteImport } from './routes/_authenticated/lists.$listId'
 import { Route as AuthenticatedMessagesIndexRouteImport } from './routes/_authenticated/messages.index'
 import { Route as AuthenticatedMessagesConversationIdRouteImport } from './routes/_authenticated/messages.$conversationId'
 import { Route as AuthenticatedSettingsProfileRouteImport } from './routes/_authenticated/settings.profile'
@@ -85,6 +86,12 @@ const AuthenticatedListsIndexRoute = AuthenticatedListsIndexRouteImport.update({
   path: '/lists/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedListsListIdRoute =
+  AuthenticatedListsListIdRouteImport.update({
+    id: '/lists/$listId',
+    path: '/lists/$listId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedMessagesIndexRoute =
   AuthenticatedMessagesIndexRouteImport.update({
     id: '/',
@@ -115,6 +122,7 @@ export interface FileRoutesByFullPath {
   '/messages': typeof AuthenticatedMessagesRouteWithChildren
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/post/$postId': typeof PostPostIdRoute
+  '/lists/$listId': typeof AuthenticatedListsListIdRoute
   '/messages/$conversationId': typeof AuthenticatedMessagesConversationIdRoute
   '/settings/profile': typeof AuthenticatedSettingsProfileRoute
   '/lists/': typeof AuthenticatedListsIndexRoute
@@ -130,6 +138,7 @@ export interface FileRoutesByTo {
   '/home': typeof AuthenticatedHomeRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/post/$postId': typeof PostPostIdRoute
+  '/lists/$listId': typeof AuthenticatedListsListIdRoute
   '/messages/$conversationId': typeof AuthenticatedMessagesConversationIdRoute
   '/settings/profile': typeof AuthenticatedSettingsProfileRoute
   '/lists': typeof AuthenticatedListsIndexRoute
@@ -148,6 +157,7 @@ export interface FileRoutesById {
   '/_authenticated/messages': typeof AuthenticatedMessagesRouteWithChildren
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
   '/post/$postId': typeof PostPostIdRoute
+  '/_authenticated/lists/$listId': typeof AuthenticatedListsListIdRoute
   '/_authenticated/messages/$conversationId': typeof AuthenticatedMessagesConversationIdRoute
   '/_authenticated/settings/profile': typeof AuthenticatedSettingsProfileRoute
   '/_authenticated/lists/': typeof AuthenticatedListsIndexRoute
@@ -166,6 +176,7 @@ export interface FileRouteTypes {
     | '/messages'
     | '/notifications'
     | '/post/$postId'
+    | '/lists/$listId'
     | '/messages/$conversationId'
     | '/settings/profile'
     | '/lists/'
@@ -181,6 +192,7 @@ export interface FileRouteTypes {
     | '/home'
     | '/notifications'
     | '/post/$postId'
+    | '/lists/$listId'
     | '/messages/$conversationId'
     | '/settings/profile'
     | '/lists'
@@ -198,6 +210,7 @@ export interface FileRouteTypes {
     | '/_authenticated/messages'
     | '/_authenticated/notifications'
     | '/post/$postId'
+    | '/_authenticated/lists/$listId'
     | '/_authenticated/messages/$conversationId'
     | '/_authenticated/settings/profile'
     | '/_authenticated/lists/'
@@ -300,6 +313,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedListsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/lists/$listId': {
+      id: '/_authenticated/lists/$listId'
+      path: '/lists/$listId'
+      fullPath: '/lists/$listId'
+      preLoaderRoute: typeof AuthenticatedListsListIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/messages/': {
       id: '/_authenticated/messages/'
       path: '/'
@@ -345,6 +365,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedHomeRoute: typeof AuthenticatedHomeRoute
   AuthenticatedMessagesRoute: typeof AuthenticatedMessagesRouteWithChildren
   AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
+  AuthenticatedListsListIdRoute: typeof AuthenticatedListsListIdRoute
   AuthenticatedSettingsProfileRoute: typeof AuthenticatedSettingsProfileRoute
   AuthenticatedListsIndexRoute: typeof AuthenticatedListsIndexRoute
 }
@@ -354,6 +375,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedHomeRoute: AuthenticatedHomeRoute,
   AuthenticatedMessagesRoute: AuthenticatedMessagesRouteWithChildren,
   AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
+  AuthenticatedListsListIdRoute: AuthenticatedListsListIdRoute,
   AuthenticatedSettingsProfileRoute: AuthenticatedSettingsProfileRoute,
   AuthenticatedListsIndexRoute: AuthenticatedListsIndexRoute,
 }
