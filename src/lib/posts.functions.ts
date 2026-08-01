@@ -33,6 +33,10 @@ export interface Post {
   } | null;
   /** Attached poll, when the post has one. */
   poll?: { id: string } | { id: string }[] | null;
+  /** Bookmark row id, when the post came from a bookmark list. */
+  bookmarkId?: string;
+  /** Bookmark collection the post is filed under, when known. */
+  collectionId?: string | null;
   /** Stable key for feed rendering (a post can appear once per reposter). */
   feedKey?: string;
 }
