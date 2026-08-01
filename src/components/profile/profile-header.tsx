@@ -87,7 +87,10 @@ export function ProfileHeader({
               </Button>
             </Link>
           ) : (
-            <FollowButton userId={profile.id} />
+            <>
+              <MessageButton userId={profile.id} />
+              <FollowButton userId={profile.id} />
+            </>
           )}
         </div>
 
