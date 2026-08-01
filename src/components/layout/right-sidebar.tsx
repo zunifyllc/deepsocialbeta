@@ -1,6 +1,7 @@
-import { Link } from "@tanstack/react-router";
 import { SearchBox } from "@/components/search/search-box";
+import { TrendingPanel } from "@/components/layout/trending-panel";
 import { useAuth } from "@/hooks/use-auth";
+
 
 export function RightSidebar() {
   const { user } = useAuth();
