@@ -130,14 +130,15 @@ export function ProfileHeader({
         </div>
 
         <div className="mt-3 flex gap-4 text-sm">
-          <Link to="/$username/following" params={{ username: profile.username }} className="hover:underline">
+          <Link to="/$username" params={{ username: profile.username }} className="hover:underline">
             <span className="font-bold text-foreground">{followingCount}</span>{" "}
             <span className="text-muted-foreground">Following</span>
           </Link>
-          <Link to="/$username/followers" params={{ username: profile.username }} className="hover:underline">
+          <Link to="/$username" params={{ username: profile.username }} className="hover:underline">
             <span className="font-bold text-foreground">{followersCount}</span>{" "}
             <span className="text-muted-foreground">Followers</span>
           </Link>
+
         </div>
       </div>
 

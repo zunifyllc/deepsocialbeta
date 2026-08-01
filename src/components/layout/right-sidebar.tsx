@@ -1,29 +1,13 @@
-import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Search } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { SearchBox } from "@/components/search/search-box";
 import { useAuth } from "@/hooks/use-auth";
 
 export function RightSidebar() {
-  const [query, setQuery] = useState("");
   const { user } = useAuth();
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && query.trim()) {
-              window.location.href = `/search?q=${encodeURIComponent(query.trim())}`;
-            }
-          }}
-          className="rounded-full border-border bg-muted pl-10 text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
-        />
-      </div>
+      <SearchBox />
 
       <div className="rounded-2xl border border-border bg-muted/30 p-4">
         <h2 className="mb-4 text-xl font-extrabold">Subscribe to Premium</h2>
