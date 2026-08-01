@@ -19,12 +19,14 @@ interface Profile {
   is_verified?: boolean;
 }
 
+export type ProfileTab = "posts" | "replies" | "media" | "reposts" | "likes";
+
 interface ProfileHeaderProps {
   profile: Profile;
   followingCount: number;
   followersCount: number;
-  activeTab: "posts" | "replies" | "media" | "likes";
-  onTabChange: (tab: "posts" | "replies" | "media" | "likes") => void;
+  activeTab: ProfileTab;
+  onTabChange: (tab: ProfileTab) => void;
 }
 
 export function ProfileHeader({
@@ -140,7 +142,7 @@ export function ProfileHeader({
       </div>
 
       <div className="mt-4 flex border-b border-border">
-        {(["posts", "replies", "media", "likes"] as const).map((tab) => (
+        {(["posts", "replies", "media", "reposts", "likes"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => onTabChange(tab)}
