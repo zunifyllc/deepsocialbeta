@@ -58,7 +58,12 @@ function HomePage() {
 
       <div>
         {posts?.map((post) => (
-          <PostCard key={post.id} post={post} onDelete={handleDelete} />
+          <PostCard
+            key={post.feedKey ?? post.id}
+            post={post}
+            onDelete={handleDelete}
+            onRepostChange={() => queryClient.invalidateQueries({ queryKey: ["feed"] })}
+          />
         ))}
         {posts?.length === 0 && (
           <div className="p-8 text-center text-muted-foreground">
