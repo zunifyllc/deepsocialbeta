@@ -1,7 +1,7 @@
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { X, Eye, EyeOff } from "lucide-react";
+import { Waves, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -79,7 +79,7 @@ function AuthPage() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
-          <X className="mx-auto h-12 w-12 text-foreground" />
+          <Waves className="mx-auto h-12 w-12 text-foreground" />
           <h1 className="mt-6 text-3xl font-bold">Happening now</h1>
           <p className="mt-2 text-muted-foreground">Join today.</p>
         </div>

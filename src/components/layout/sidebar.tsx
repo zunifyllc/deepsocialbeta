@@ -1,5 +1,5 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Home, Search, Bell, Mail, User, Settings, Feather, X } from "lucide-react";
+import { Home, Search, Bell, Mail, User, Settings, Feather, Waves } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 
