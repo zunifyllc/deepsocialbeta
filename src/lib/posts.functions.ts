@@ -40,8 +40,6 @@ const createPostSchema = z.object({
   mediaUrls: z.array(z.string().url()).max(4).default([]),
 });
 
-const postWithAuthor = POST_WITH_AUTHOR;
-
 export const getFeed = createServerFn({ method: "GET" })
   .validator((input) =>
     z
@@ -56,7 +54,7 @@ export const getFeed = createServerFn({ method: "GET" })
     const supabase = createPublicClient();
     let query = supabase
       .from("posts")
-      .select(postWithAuthor)
+      .select(POST_WITH_AUTHOR)
       .is("parent_post_id", null)
       .order("created_at", { ascending: false })
       .limit(data.limit);
@@ -86,7 +84,7 @@ export const getPost = createServerFn({ method: "GET" })
     const supabase = createPublicClient();
     const { data: post, error } = await supabase
       .from("posts")
-      .select(postWithAuthor)
+      .select(POST_WITH_AUTHOR)
       .eq("id", data.postId)
       .maybeSingle();
     if (error) throw error;
@@ -99,7 +97,7 @@ export const getReplies = createServerFn({ method: "GET" })
     const supabase = createPublicClient();
     const { data: replies, error } = await supabase
       .from("posts")
-      .select(postWithAuthor)
+      .select(POST_WITH_AUTHOR)
       .eq("parent_post_id", data.postId)
       .order("created_at", { ascending: true });
     if (error) throw error;
@@ -120,7 +118,7 @@ export const getUserPosts = createServerFn({ method: "GET" })
     const supabase = createPublicClient();
     let query = supabase
       .from("posts")
-      .select(postWithAuthor)
+      .select(POST_WITH_AUTHOR)
       .eq("author_id", data.userId)
       .is("parent_post_id", null)
       .order("created_at", { ascending: false })
@@ -158,7 +156,7 @@ export const createPost = createServerFn({ method: "POST" })
         parent_post_id: data.parentPostId ?? null,
         media_urls: data.mediaUrls,
       })
-      .select(postWithAuthor)
+      .select(POST_WITH_AUTHOR)
       .single();
     if (error) throw error;
     return post as unknown as Post;
