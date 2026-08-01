@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, Calendar, MapPin, Link as LinkIcon } from "lucide-react";
+import { ArrowLeft, Calendar, MapPin, Link as LinkIcon, Users } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/use-auth";
 import { FollowButton } from "./follow-button";
 import { MessageButton } from "@/components/messages/message-button";
 import { AddToListMenu } from "@/components/lists/add-to-list-menu";
 import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
+import { getFollowStatus } from "@/lib/follows.functions";
 
 interface Profile {
   id: string;
@@ -17,6 +19,7 @@ interface Profile {
   banner_url: string | null;
   location: string | null;
   website: string | null;
+  pronouns?: string | null;
   created_at: string;
   is_verified?: boolean;
 }
@@ -41,6 +44,12 @@ export function ProfileHeader({
   const { user } = useAuth();
   const isOwner = user?.id === profile.id;
   const [imageError, setImageError] = useState({ banner: false, avatar: false });
+
+  const { data: relationship } = useQuery({
+    queryKey: ["follow-status", profile.id],
+    queryFn: () => getFollowStatus({ data: { followingId: profile.id } }),
+    enabled: !!user && !isOwner,
+  });
 
   return (
     <div className="border-b border-border">
@@ -106,7 +115,26 @@ export function ProfileHeader({
               </svg>
             )}
           </h2>
-          <p className="text-muted-foreground">@{profile.username}</p>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <p className="text-muted-foreground">@{profile.username}</p>
+            {profile.pronouns && (
+              <>
+                <span className="text-muted-foreground">·</span>
+                <span className="text-muted-foreground">{profile.pronouns}</span>
+              </>
+            )}
+            {relationship?.followedBy && (
+              <span className="flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
+                {relationship.following ? (
+                  <>
+                    <Users className="h-3 w-3" /> You follow each other
+                  </>
+                ) : (
+                  "Follows you"
+                )}
+              </span>
+            )}
+          </div>
         </div>
 
         {profile.bio && <p className="mt-3 whitespace-pre-wrap text-[15px]">{profile.bio}</p>}
