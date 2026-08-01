@@ -77,7 +77,7 @@ function SearchPage() {
           {TABS.map((t) => (
             <button
               key={t}
-              onClick={() => navigate({ search: (prev) => ({ ...prev, tab: t, page: 0 }) })}
+              onClick={() => navigate({ search: (prev: { q: string; tab: string; page: number }) => ({ ...prev, tab: t, page: 0 }) })}
               className={`relative flex-1 py-3 text-sm capitalize transition-colors hover:bg-accent/50 ${
                 activeTab === t ? "font-bold text-foreground" : "text-muted-foreground"
               }`}
@@ -175,7 +175,7 @@ function SearchPage() {
                   <div className="flex items-center justify-between p-4">
                     <button
                       disabled={safePage === 0}
-                      onClick={() => navigate({ search: (prev) => ({ ...prev, page: safePage - 1 }) })}
+                      onClick={() => navigate({ search: (prev: { q: string; tab: string; page: number }) => ({ ...prev, page: safePage - 1 }) })}
                       className="rounded-full border border-border px-4 py-2 text-sm font-semibold disabled:opacity-40"
                     >
                       Previous
@@ -183,7 +183,7 @@ function SearchPage() {
                     <span className="text-sm text-muted-foreground">Page {safePage + 1}</span>
                     <button
                       disabled={posts.length < PAGE_SIZE}
-                      onClick={() => navigate({ search: (prev) => ({ ...prev, page: safePage + 1 }) })}
+                      onClick={() => navigate({ search: (prev: { q: string; tab: string; page: number }) => ({ ...prev, page: safePage + 1 }) })}
                       className="rounded-full border border-border px-4 py-2 text-sm font-semibold disabled:opacity-40"
                     >
                       Next
