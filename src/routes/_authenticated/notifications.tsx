@@ -11,8 +11,8 @@ interface NotificationWithActor extends Notification {}
 export const Route = createFileRoute("/_authenticated/notifications")({
   head: () => ({
     meta: [
-      { title: "Notifications / X Clone" },
-      { name: "description", content: "Your notifications on X Clone." },
+      { title: "Notifications / DeepSocial" },
+      { name: "description", content: "Your notifications on DeepSocial." },
     ],
   }),
   loader: ({ context }) => context.queryClient.ensureQueryData(notificationsQueryOptions()),

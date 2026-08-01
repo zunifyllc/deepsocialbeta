@@ -8,8 +8,8 @@ import { useServerFn } from "@tanstack/react-start";
 export const Route = createFileRoute("/explore")({
   head: () => ({
     meta: [
-      { title: "Explore / X Clone" },
-      { name: "description", content: "Discover public posts on X Clone." },
+      { title: "Explore / DeepSocial" },
+      { name: "description", content: "Discover public posts on DeepSocial." },
     ],
   }),
   loader: ({ context }) => context.queryClient.ensureQueryData(exploreQueryOptions()),

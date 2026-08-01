@@ -5,8 +5,8 @@ import { Mail } from "lucide-react";
 export const Route = createFileRoute("/_authenticated/messages")({
   head: () => ({
     meta: [
-      { title: "Messages / X Clone" },
-      { name: "description", content: "Direct messages on X Clone." },
+      { title: "Messages / DeepSocial" },
+      { name: "description", content: "Direct messages on DeepSocial." },
     ],
   }),
   component: MessagesPage,
