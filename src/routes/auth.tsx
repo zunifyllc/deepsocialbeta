@@ -23,6 +23,7 @@ export const Route = createFileRoute("/auth")({
 });
 
 function AuthPage() {
+  const router = useRouter();
   const [mode, setMode] = useState<"signin" | "signup" | "reset">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
