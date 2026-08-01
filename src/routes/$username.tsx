@@ -4,7 +4,7 @@ import { useSuspenseQuery, useQuery, useQueryClient } from "@tanstack/react-quer
 import { AppShell } from "@/components/layout/app-shell";
 import { ProfileHeader } from "@/components/profile/profile-header";
 import { PostCard } from "@/components/posts/post-card";
-import { getProfileByUsername } from "@/lib/profiles.functions";
+import { getProfileByUsername, getPinnedPost } from "@/lib/profiles.functions";
 import { getUserPosts, deletePost } from "@/lib/posts.functions";
 import { getFollowCounts } from "@/lib/follows.functions";
 import { getUserReposts } from "@/lib/reposts.functions";
@@ -40,6 +40,11 @@ const userRepostsQueryOptions = (userId: string) => ({
   queryFn: () => getUserReposts({ data: { userId } }),
 });
 
+const pinnedPostQueryOptions = (userId: string) => ({
+  queryKey: ["pinned-post", userId],
+  queryFn: () => getPinnedPost({ data: { userId } }),
+});
+
 const followCountsQueryOptions = (userId: string) => ({
   queryKey: ["follow-counts", userId],
   queryFn: () => getFollowCounts({ data: { userId } }),
@@ -52,12 +57,18 @@ function ProfilePage() {
   const { data: posts } = useSuspenseQuery(userPostsQueryOptions(profile.id));
   const { data: counts } = useSuspenseQuery(followCountsQueryOptions(profile.id));
   const { data: reposts } = useQuery(userRepostsQueryOptions(profile.id));
+  const { data: pinnedPost } = useQuery(pinnedPostQueryOptions(profile.id));
   const remove = useServerFn(deletePost);
 
   const handleDelete = async (id: string) => {
     await remove({ data: { id } });
     queryClient.invalidateQueries({ queryKey: ["user-posts", profile.id] });
     queryClient.invalidateQueries({ queryKey: ["user-reposts", profile.id] });
+    queryClient.invalidateQueries({ queryKey: ["pinned-post", profile.id] });
+  };
+
+  const invalidatePinned = () => {
+    queryClient.invalidateQueries({ queryKey: ["pinned-post", profile.id] });
   };
 
   const invalidateFeeds = () => {
@@ -85,6 +96,16 @@ function ProfilePage() {
       />
 
       <div>
+        {activeTab === "posts" && pinnedPost && (
+          <PostCard
+            key={`pinned-${pinnedPost.id}`}
+            post={pinnedPost}
+            pinned
+            onPinChange={invalidatePinned}
+            onDelete={handleDelete}
+            onRepostChange={invalidateFeeds}
+          />
+        )}
         {activeTab === "likes" ? (
           <div className="p-8 text-center text-muted-foreground">
             <p className="text-xl font-bold">No liked posts yet</p>
@@ -95,6 +116,7 @@ function ProfilePage() {
               key={post.feedKey ?? post.id}
               post={post}
               onDelete={handleDelete}
+              onPinChange={invalidatePinned}
               onRepostChange={invalidateFeeds}
             />
           ))

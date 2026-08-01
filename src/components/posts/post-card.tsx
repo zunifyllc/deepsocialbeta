@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { MessageCircle, Repeat2, Share, Trash2 } from "lucide-react";
+import { MessageCircle, MoreHorizontal, Pin, PinOff, Repeat2, Share, Trash2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useAuth } from "@/hooks/use-auth";
 import type { Post } from "@/lib/posts.functions";
@@ -11,18 +11,39 @@ import { BookmarkButton } from "./bookmark-button";
 import { PostContent } from "./post-content";
 import { MediaGrid } from "./media-grid";
 import { PollCard } from "./poll-card";
+import { togglePinPost } from "@/lib/profiles.functions";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 
 interface PostCardProps {
   post: Post;
+  /** Renders the "Pinned" header above the post. */
+  pinned?: boolean;
+  onPinChange?: () => void;
   showReply?: boolean;
   onDelete?: (id: string) => void;
   onRepostChange?: () => void;
   onBookmarkChange?: () => void;
 }
 
-export function PostCard({ post, showReply = true, onDelete, onRepostChange, onBookmarkChange }: PostCardProps) {
-  const { user } = useAuth();
+export function PostCard({
+  post,
+  showReply = true,
+  pinned = false,
+  onPinChange,
+  onDelete,
+  onRepostChange,
+  onBookmarkChange,
+}: PostCardProps) {
+  const { user, profile, refreshProfile } = useAuth();
+  const togglePin = useServerFn(togglePinPost);
   const [quoteOpen, setQuoteOpen] = useState(false);
   const isOwner = user?.id === post.author?.id;
 
@@ -31,9 +52,28 @@ export function PostCard({ post, showReply = true, onDelete, onRepostChange, onB
   const poll = Array.isArray(post.poll) ? post.poll[0] : post.poll;
 
   const reposter = post.repost?.repostedBy;
+  const isPinned = pinned || profile?.pinned_post_id === post.id;
+
+  const handleTogglePin = async () => {
+    try {
+      const updated = await togglePin({ data: { postId: post.id } });
+      await refreshProfile();
+      toast.success(updated.pinned_post_id === post.id ? "Pinned to your profile" : "Unpinned from your profile");
+      onPinChange?.();
+    } catch {
+      toast.error("Could not update pinned post");
+    }
+  };
 
   return (
     <article className="border-b border-border px-4 py-3 transition-colors hover:bg-muted/20">
+      {pinned && (
+        <div className="mb-1 flex items-center gap-2 pl-12 text-sm font-semibold text-muted-foreground">
+          <Pin className="h-4 w-4" />
+          <span>Pinned</span>
+        </div>
+      )}
+
       {reposter && (
         <div className="mb-1 flex items-center gap-2 pl-12 text-sm font-semibold text-muted-foreground">
           <Repeat2 className="h-4 w-4" />
@@ -83,6 +123,37 @@ export function PostCard({ post, showReply = true, onDelete, onRepostChange, onB
             >
               {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
             </Link>
+
+            {isOwner && (
+              <div className="ml-auto flex-shrink-0">
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    aria-label="Post options"
+                    className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={handleTogglePin}>
+                      {isPinned ? (
+                        <>
+                          <PinOff className="mr-2 h-4 w-4" /> Unpin from profile
+                        </>
+                      ) : (
+                        <>
+                          <Pin className="mr-2 h-4 w-4" /> Pin to profile
+                        </>
+                      )}
+                    </DropdownMenuItem>
+                    {onDelete && (
+                      <DropdownMenuItem onClick={() => onDelete(post.id)} className="text-destructive">
+                        <Trash2 className="mr-2 h-4 w-4" /> Delete post
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            )}
           </div>
 
           <p className="mt-1 block whitespace-pre-wrap text-[15px] leading-normal">

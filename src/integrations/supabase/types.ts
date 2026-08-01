@@ -425,6 +425,7 @@ export type Database = {
           id: string
           is_verified: boolean
           location: string | null
+          pinned_post_id: string | null
           updated_at: string
           username: string
           website: string | null
@@ -438,6 +439,7 @@ export type Database = {
           id: string
           is_verified?: boolean
           location?: string | null
+          pinned_post_id?: string | null
           updated_at?: string
           username: string
           website?: string | null
@@ -451,11 +453,20 @@ export type Database = {
           id?: string
           is_verified?: boolean
           location?: string | null
+          pinned_post_id?: string | null
           updated_at?: string
           username?: string
           website?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_pinned_post_id_fkey"
+            columns: ["pinned_post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reposts: {
         Row: {
