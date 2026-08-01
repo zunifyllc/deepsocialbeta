@@ -8,6 +8,8 @@ import { LikeButton } from "./like-button";
 import { RepostButton } from "./repost-button";
 import { RepostModal } from "./repost-modal";
 import { BookmarkButton } from "./bookmark-button";
+import { PostContent } from "./post-content";
+
 
 interface PostCardProps {
   post: Post;
