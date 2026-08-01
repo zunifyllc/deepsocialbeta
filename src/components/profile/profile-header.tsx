@@ -4,6 +4,7 @@ import { ArrowLeft, Calendar, MapPin, Link as LinkIcon } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/use-auth";
 import { FollowButton } from "./follow-button";
+import { MessageButton } from "@/components/messages/message-button";
 import { Button } from "@/components/ui/button";
 
 interface Profile {
