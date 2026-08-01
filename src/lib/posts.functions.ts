@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { createPublicClient } from "./supabase-public";
+import { fetchRepostFeedItems, mergeFeedItems, POST_WITH_AUTHOR } from "./feed-helpers";
 
 export interface PostAuthor {
   id: string;
@@ -22,6 +23,15 @@ export interface Post {
   created_at: string;
   updated_at: string;
   author: PostAuthor | null;
+  /** Present when this feed item is a repost of the post above. */
+  repost?: {
+    id: string;
+    reposted_at: string;
+    quote_content: string | null;
+    repostedBy: PostAuthor;
+  } | null;
+  /** Stable key for feed rendering (a post can appear once per reposter). */
+  feedKey?: string;
 }
 
 const createPostSchema = z.object({
@@ -30,18 +40,7 @@ const createPostSchema = z.object({
   mediaUrls: z.array(z.string().url()).max(4).default([]),
 });
 
-const postWithAuthor = `
-  id,
-  content,
-  parent_post_id,
-  media_urls,
-  like_count,
-  reply_count,
-  repost_count,
-  created_at,
-  updated_at,
-  author:profiles!posts_author_id_profiles_fkey(*)
-`;
+const postWithAuthor = POST_WITH_AUTHOR;
 
 export const getFeed = createServerFn({ method: "GET" })
   .validator((input) =>
@@ -68,7 +67,17 @@ export const getFeed = createServerFn({ method: "GET" })
 
     const { data: posts, error } = await query;
     if (error) throw error;
-    return (posts ?? []) as unknown as Post[];
+
+    const reposts = await fetchRepostFeedItems(supabase, {
+      limit: data.limit,
+      ...(data.cursor ? { cursor: data.cursor } : {}),
+    });
+
+    return mergeFeedItems(
+      (posts ?? []) as unknown as Post[],
+      reposts as unknown as Post[],
+      data.limit,
+    );
   });
 
 export const getPost = createServerFn({ method: "GET" })
@@ -123,7 +132,18 @@ export const getUserPosts = createServerFn({ method: "GET" })
 
     const { data: posts, error } = await query;
     if (error) throw error;
-    return (posts ?? []) as unknown as Post[];
+
+    const reposts = await fetchRepostFeedItems(supabase, {
+      userId: data.userId,
+      limit: data.limit,
+      ...(data.cursor ? { cursor: data.cursor } : {}),
+    });
+
+    return mergeFeedItems(
+      (posts ?? []) as unknown as Post[],
+      reposts as unknown as Post[],
+      data.limit,
+    );
   });
 
 export const createPost = createServerFn({ method: "POST" })
