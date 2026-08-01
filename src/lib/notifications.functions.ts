@@ -16,7 +16,7 @@ export interface NotificationPost {
 
 export interface Notification {
   id: string;
-  type: "like" | "reply" | "follow" | "repost";
+  type: "like" | "reply" | "follow" | "repost" | "poll_vote";
   read_at: string | null;
   created_at: string;
   post_id: string | null;
