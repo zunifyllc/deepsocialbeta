@@ -84,6 +84,7 @@ export function PostComposer({
 
         <div className="flex-1">
           <Textarea
+            data-testid="post-composer-textarea"
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder={placeholder}
