@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { MessageCircle, MoreHorizontal, Pin, PinOff, Repeat2, Share, Trash2 } from "lucide-react";
+import { FolderPlus, MessageCircle, MoreHorizontal, Pin, PinOff, Repeat2, Share, Trash2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useAuth } from "@/hooks/use-auth";
 import type { Post } from "@/lib/posts.functions";
@@ -11,6 +11,7 @@ import { BookmarkButton } from "./bookmark-button";
 import { PostContent } from "./post-content";
 import { MediaGrid } from "./media-grid";
 import { PollCard } from "./poll-card";
+import { SaveToCollectionDialog } from "./save-to-collection-dialog";
 import { togglePinPost } from "@/lib/profiles.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -45,6 +46,7 @@ export function PostCard({
   const { user, profile, refreshProfile } = useAuth();
   const togglePin = useServerFn(togglePinPost);
   const [quoteOpen, setQuoteOpen] = useState(false);
+  const [collectionOpen, setCollectionOpen] = useState(false);
   const isOwner = user?.id === post.author?.id;
 
   if (!post.author) return null;
@@ -124,7 +126,7 @@ export function PostCard({
               {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
             </Link>
 
-            {isOwner && (
+            {user && (
               <div className="ml-auto flex-shrink-0">
                 <DropdownMenu>
                   <DropdownMenuTrigger
@@ -134,6 +136,10 @@ export function PostCard({
                     <MoreHorizontal className="h-4 w-4" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setCollectionOpen(true)}>
+                      <FolderPlus className="mr-2 h-4 w-4" /> Save to collection...
+                    </DropdownMenuItem>
+                    {isOwner && (
                     <DropdownMenuItem onClick={handleTogglePin}>
                       {isPinned ? (
                         <>
@@ -145,7 +151,8 @@ export function PostCard({
                         </>
                       )}
                     </DropdownMenuItem>
-                    {onDelete && (
+                    )}
+                    {isOwner && onDelete && (
                       <DropdownMenuItem onClick={() => onDelete(post.id)} className="text-destructive">
                         <Trash2 className="mr-2 h-4 w-4" /> Delete post
                       </DropdownMenuItem>
@@ -209,6 +216,13 @@ export function PostCard({
           </div>
         </div>
       </div>
+
+      <SaveToCollectionDialog
+        postId={post.id}
+        open={collectionOpen}
+        onOpenChange={setCollectionOpen}
+        {...(onBookmarkChange ? { onSaved: onBookmarkChange } : {})}
+      />
 
       <RepostModal
         post={post}
