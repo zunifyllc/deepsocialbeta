@@ -7,15 +7,17 @@ import type { Post } from "@/lib/posts.functions";
 import { LikeButton } from "./like-button";
 import { RepostButton } from "./repost-button";
 import { RepostModal } from "./repost-modal";
+import { BookmarkButton } from "./bookmark-button";
 
 interface PostCardProps {
   post: Post;
   showReply?: boolean;
   onDelete?: (id: string) => void;
   onRepostChange?: () => void;
+  onBookmarkChange?: () => void;
 }
 
-export function PostCard({ post, showReply = true, onDelete, onRepostChange }: PostCardProps) {
+export function PostCard({ post, showReply = true, onDelete, onRepostChange, onBookmarkChange }: PostCardProps) {
   const { user } = useAuth();
   const [quoteOpen, setQuoteOpen] = useState(false);
   const isOwner = user?.id === post.author?.id;
@@ -111,6 +113,8 @@ export function PostCard({ post, showReply = true, onDelete, onRepostChange }: P
             />
 
             <LikeButton postId={post.id} initialLikes={post.like_count} />
+
+            <BookmarkButton postId={post.id} {...(onBookmarkChange ? { onChange: onBookmarkChange } : {})} />
 
             <button className="group flex items-center gap-2 transition-colors hover:text-primary">
               <div className="rounded-full p-2 group-hover:bg-primary/10">
