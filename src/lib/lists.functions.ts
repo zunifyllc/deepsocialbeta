@@ -36,10 +36,11 @@ export const updateList = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input) => updateListSchema.parse(input))
   .handler(async ({ data, context }): Promise<UserList> => {
-    const patch: Record<string, unknown> = {};
-    if (data.name !== undefined) patch["name"] = data.name;
-    if (data.description !== undefined) patch["description"] = data.description;
-    if (data.isPublic !== undefined) patch["is_public"] = data.isPublic;
+    const patch: { name?: string; description?: string | null; is_public?: boolean } = {};
+    if (data.name !== undefined) patch.name = data.name;
+    if (data.description !== undefined) patch.description = data.description;
+    if (data.isPublic !== undefined) patch.is_public = data.isPublic;
+
 
     const { data: list, error } = await context.supabase
       .from("lists")
