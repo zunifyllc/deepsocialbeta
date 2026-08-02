@@ -109,3 +109,28 @@
     color: var(--color-foreground);
   }
 }
+
+/*
+ * Personalization layer.
+ *
+ * The accent color is written as an inline `--primary` override on <html> by
+ * the theme provider (see src/hooks/use-theme.tsx), so every `bg-primary`,
+ * `text-primary`, and `border-primary` utility follows the user's choice.
+ *
+ * `theme-black` is the true-black (OLED) variant: pure black surfaces with
+ * darker borders than the default dark theme.
+ */
+.theme-black {
+  --background: oklch(0 0 0);
+  --card: oklch(0 0 0);
+  --popover: oklch(0.05 0 0);
+  --secondary: oklch(0.14 0 0);
+  --muted: oklch(0.11 0 0);
+  --muted-foreground: oklch(0.6 0 0);
+  --accent: oklch(0.14 0 0);
+  --border: oklch(0.16 0 0);
+  --input: oklch(0.16 0 0);
+  --sidebar: oklch(0 0 0);
+  --sidebar-accent: oklch(0.11 0 0);
+  --sidebar-border: oklch(0.16 0 0);
+}

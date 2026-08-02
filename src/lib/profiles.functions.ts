@@ -16,6 +16,8 @@ export interface Profile {
   avatar_url: string | null;
   banner_url: string | null;
   pinned_post_id: string | null;
+  accent_color: string;
+  theme_mode: "dark" | "black";
   created_at: string;
   updated_at: string;
 }
@@ -28,7 +30,13 @@ const profileSchema = z.object({
   pronouns: z.string().max(20).nullish(),
   avatar_url: z.string().url().nullish(),
   banner_url: z.string().url().nullish(),
+  accent_color: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/, "Accent color must be a hex value like #1d9bf0")
+    .optional(),
+  theme_mode: z.enum(["dark", "black"]).optional(),
 });
+
 
 export const getProfileByUsername = createServerFn({ method: "GET" })
   .validator((input) => z.object({ username: z.string() }).parse(input))
@@ -59,18 +67,22 @@ export const updateProfile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input) => profileSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const update = {
-      display_name: data.display_name ?? null,
-      bio: data.bio ?? null,
-      location: data.location ?? null,
-      website: data.website ?? null,
-      pronouns: data.pronouns?.trim() ? data.pronouns.trim() : null,
-      avatar_url: data.avatar_url ?? null,
-      banner_url: data.banner_url ?? null,
-    };
+    // Only touch the fields the caller actually sent, so the appearance
+    // settings screen cannot wipe bio/links and vice versa.
+    const update: Record<string, string | null> = {};
+    if ("display_name" in data) update["display_name"] = data.display_name ?? null;
+    if ("bio" in data) update["bio"] = data.bio ?? null;
+    if ("location" in data) update["location"] = data.location ?? null;
+    if ("website" in data) update["website"] = data.website ?? null;
+    if ("pronouns" in data) update["pronouns"] = data.pronouns?.trim() ? data.pronouns.trim() : null;
+    if ("avatar_url" in data) update["avatar_url"] = data.avatar_url ?? null;
+    if ("banner_url" in data) update["banner_url"] = data.banner_url ?? null;
+    if (data.accent_color) update["accent_color"] = data.accent_color.toLowerCase();
+    if (data.theme_mode) update["theme_mode"] = data.theme_mode;
+
     const { data: profile, error } = await context.supabase
       .from("profiles")
-      .update(update)
+      .update(update as never)
       .eq("id", context.userId)
       .select()
       .single();

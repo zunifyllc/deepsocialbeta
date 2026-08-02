@@ -43,10 +43,10 @@ export function LikeButton({ postId, initialLikes }: LikeButtonProps) {
       onClick={handleClick}
       disabled={!user || isLoading}
       className={`group flex items-center gap-2 transition-colors ${
-        liked ? "text-pink-500" : "hover:text-pink-500"
+        liked ? "text-primary" : "hover:text-primary"
       }`}
     >
-      <div className={`rounded-full p-2 ${liked ? "bg-pink-500/10" : "group-hover:bg-pink-500/10"}`}>
+      <div className={`rounded-full p-2 ${liked ? "bg-primary/10" : "group-hover:bg-primary/10"}`}>
         <Heart className={`h-4 w-4 ${liked ? "fill-current" : ""}`} />
       </div>
       <span className="text-sm">{likes > 0 ? likes : ""}</span>

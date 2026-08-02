@@ -481,6 +481,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          accent_color: string
           avatar_url: string | null
           banner_url: string | null
           bio: string | null
@@ -491,11 +492,13 @@ export type Database = {
           location: string | null
           pinned_post_id: string | null
           pronouns: string | null
+          theme_mode: string
           updated_at: string
           username: string
           website: string | null
         }
         Insert: {
+          accent_color?: string
           avatar_url?: string | null
           banner_url?: string | null
           bio?: string | null
@@ -506,11 +509,13 @@ export type Database = {
           location?: string | null
           pinned_post_id?: string | null
           pronouns?: string | null
+          theme_mode?: string
           updated_at?: string
           username: string
           website?: string | null
         }
         Update: {
+          accent_color?: string
           avatar_url?: string | null
           banner_url?: string | null
           bio?: string | null
@@ -521,6 +526,7 @@ export type Database = {
           location?: string | null
           pinned_post_id?: string | null
           pronouns?: string | null
+          theme_mode?: string
           updated_at?: string
           username?: string
           website?: string | null
