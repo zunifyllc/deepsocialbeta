@@ -24,6 +24,7 @@ import { Route as AuthenticatedListsIndexRouteImport } from './routes/_authentic
 import { Route as AuthenticatedListsListIdRouteImport } from './routes/_authenticated/lists.$listId'
 import { Route as AuthenticatedMessagesIndexRouteImport } from './routes/_authenticated/messages.index'
 import { Route as AuthenticatedMessagesConversationIdRouteImport } from './routes/_authenticated/messages.$conversationId'
+import { Route as AuthenticatedSettingsNotificationsRouteImport } from './routes/_authenticated/settings.notifications'
 import { Route as AuthenticatedSettingsProfileRouteImport } from './routes/_authenticated/settings.profile'
 
 const IndexRoute = IndexRouteImport.update({
@@ -104,6 +105,12 @@ const AuthenticatedMessagesConversationIdRoute =
     path: '/$conversationId',
     getParentRoute: () => AuthenticatedMessagesRoute,
   } as any)
+const AuthenticatedSettingsNotificationsRoute =
+  AuthenticatedSettingsNotificationsRouteImport.update({
+    id: '/settings/notifications',
+    path: '/settings/notifications',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSettingsProfileRoute =
   AuthenticatedSettingsProfileRouteImport.update({
     id: '/settings/profile',
@@ -124,6 +131,7 @@ export interface FileRoutesByFullPath {
   '/post/$postId': typeof PostPostIdRoute
   '/lists/$listId': typeof AuthenticatedListsListIdRoute
   '/messages/$conversationId': typeof AuthenticatedMessagesConversationIdRoute
+  '/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
   '/settings/profile': typeof AuthenticatedSettingsProfileRoute
   '/lists/': typeof AuthenticatedListsIndexRoute
   '/messages/': typeof AuthenticatedMessagesIndexRoute
@@ -140,6 +148,7 @@ export interface FileRoutesByTo {
   '/post/$postId': typeof PostPostIdRoute
   '/lists/$listId': typeof AuthenticatedListsListIdRoute
   '/messages/$conversationId': typeof AuthenticatedMessagesConversationIdRoute
+  '/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
   '/settings/profile': typeof AuthenticatedSettingsProfileRoute
   '/lists': typeof AuthenticatedListsIndexRoute
   '/messages': typeof AuthenticatedMessagesIndexRoute
@@ -159,6 +168,7 @@ export interface FileRoutesById {
   '/post/$postId': typeof PostPostIdRoute
   '/_authenticated/lists/$listId': typeof AuthenticatedListsListIdRoute
   '/_authenticated/messages/$conversationId': typeof AuthenticatedMessagesConversationIdRoute
+  '/_authenticated/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
   '/_authenticated/settings/profile': typeof AuthenticatedSettingsProfileRoute
   '/_authenticated/lists/': typeof AuthenticatedListsIndexRoute
   '/_authenticated/messages/': typeof AuthenticatedMessagesIndexRoute
@@ -178,6 +188,7 @@ export interface FileRouteTypes {
     | '/post/$postId'
     | '/lists/$listId'
     | '/messages/$conversationId'
+    | '/settings/notifications'
     | '/settings/profile'
     | '/lists/'
     | '/messages/'
@@ -194,6 +205,7 @@ export interface FileRouteTypes {
     | '/post/$postId'
     | '/lists/$listId'
     | '/messages/$conversationId'
+    | '/settings/notifications'
     | '/settings/profile'
     | '/lists'
     | '/messages'
@@ -212,6 +224,7 @@ export interface FileRouteTypes {
     | '/post/$postId'
     | '/_authenticated/lists/$listId'
     | '/_authenticated/messages/$conversationId'
+    | '/_authenticated/settings/notifications'
     | '/_authenticated/settings/profile'
     | '/_authenticated/lists/'
     | '/_authenticated/messages/'
@@ -334,6 +347,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMessagesConversationIdRouteImport
       parentRoute: typeof AuthenticatedMessagesRoute
     }
+    '/_authenticated/settings/notifications': {
+      id: '/_authenticated/settings/notifications'
+      path: '/settings/notifications'
+      fullPath: '/settings/notifications'
+      preLoaderRoute: typeof AuthenticatedSettingsNotificationsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/settings/profile': {
       id: '/_authenticated/settings/profile'
       path: '/settings/profile'
@@ -366,6 +386,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMessagesRoute: typeof AuthenticatedMessagesRouteWithChildren
   AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
   AuthenticatedListsListIdRoute: typeof AuthenticatedListsListIdRoute
+  AuthenticatedSettingsNotificationsRoute: typeof AuthenticatedSettingsNotificationsRoute
   AuthenticatedSettingsProfileRoute: typeof AuthenticatedSettingsProfileRoute
   AuthenticatedListsIndexRoute: typeof AuthenticatedListsIndexRoute
 }
@@ -376,6 +397,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMessagesRoute: AuthenticatedMessagesRouteWithChildren,
   AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
   AuthenticatedListsListIdRoute: AuthenticatedListsListIdRoute,
+  AuthenticatedSettingsNotificationsRoute:
+    AuthenticatedSettingsNotificationsRoute,
   AuthenticatedSettingsProfileRoute: AuthenticatedSettingsProfileRoute,
   AuthenticatedListsIndexRoute: AuthenticatedListsIndexRoute,
 }
