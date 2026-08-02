@@ -158,10 +158,10 @@ export const updateNotificationSettings = createServerFn({ method: "POST" })
   .validator((input) =>
     z
       .object({
-        email_likes: z.boolean().optional(),
-        email_replies: z.boolean().optional(),
-        email_follows: z.boolean().optional(),
-        email_reposts: z.boolean().optional(),
+        email_likes: z.boolean(),
+        email_replies: z.boolean(),
+        email_follows: z.boolean(),
+        email_reposts: z.boolean(),
       })
       .parse(input),
   )
@@ -169,9 +169,19 @@ export const updateNotificationSettings = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: updated, error } = await context.supabase
       .from("notification_settings")
-      .upsert({ user_id: context.userId, ...data }, { onConflict: "user_id" })
+      .upsert(
+        {
+          user_id: context.userId,
+          email_likes: data.email_likes,
+          email_replies: data.email_replies,
+          email_follows: data.email_follows,
+          email_reposts: data.email_reposts,
+        },
+        { onConflict: "user_id" },
+      )
       .select("user_id, email_likes, email_replies, email_follows, email_reposts")
       .single();
     if (error) throw error;
     return updated as NotificationSettings;
   });
+
