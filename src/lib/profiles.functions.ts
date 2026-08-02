@@ -67,15 +67,19 @@ export const updateProfile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input) => profileSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const update = {
-      display_name: data.display_name ?? null,
-      bio: data.bio ?? null,
-      location: data.location ?? null,
-      website: data.website ?? null,
-      pronouns: data.pronouns?.trim() ? data.pronouns.trim() : null,
-      avatar_url: data.avatar_url ?? null,
-      banner_url: data.banner_url ?? null,
-    };
+    // Only touch the fields the caller actually sent, so the appearance
+    // settings screen cannot wipe bio/links and vice versa.
+    const update: Record<string, string | null> = {};
+    if ("display_name" in data) update["display_name"] = data.display_name ?? null;
+    if ("bio" in data) update["bio"] = data.bio ?? null;
+    if ("location" in data) update["location"] = data.location ?? null;
+    if ("website" in data) update["website"] = data.website ?? null;
+    if ("pronouns" in data) update["pronouns"] = data.pronouns?.trim() ? data.pronouns.trim() : null;
+    if ("avatar_url" in data) update["avatar_url"] = data.avatar_url ?? null;
+    if ("banner_url" in data) update["banner_url"] = data.banner_url ?? null;
+    if (data.accent_color) update["accent_color"] = data.accent_color.toLowerCase();
+    if (data.theme_mode) update["theme_mode"] = data.theme_mode;
+
     const { data: profile, error } = await context.supabase
       .from("profiles")
       .update(update)
