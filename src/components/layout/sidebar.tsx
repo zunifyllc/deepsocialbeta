@@ -1,5 +1,5 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Home, Search, Bell, Mail, Bookmark, List, User, Settings, Feather, Waves } from "lucide-react";
+import { Home, Search, Bell, Mail, Bookmark, List, User, Settings, Palette, Feather, Waves } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -11,8 +11,10 @@ const navItems = [
   { icon: Bookmark, label: "Bookmarks", href: "/bookmarks" },
   { icon: List, label: "Lists", href: "/lists" },
   { icon: User, label: "Profile", href: "/profile" },
+  { icon: Palette, label: "Display", href: "/settings/display" },
   { icon: Settings, label: "Settings", href: "/settings/profile" },
 ];
+
 
 export function Sidebar() {
   const { user, profile, signOut } = useAuth();
