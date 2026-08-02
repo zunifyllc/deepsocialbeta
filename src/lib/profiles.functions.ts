@@ -82,7 +82,7 @@ export const updateProfile = createServerFn({ method: "POST" })
 
     const { data: profile, error } = await context.supabase
       .from("profiles")
-      .update(update)
+      .update(update as never)
       .eq("id", context.userId)
       .select()
       .single();
