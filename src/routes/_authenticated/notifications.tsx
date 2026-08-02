@@ -39,7 +39,7 @@ export const Route = createFileRoute("/_authenticated/notifications")({
 });
 
 function TypeIcon({ type }: { type: GroupedNotification["type"] }) {
-  if (type === "like") return <Heart className="h-6 w-6 fill-pink-500 text-pink-500" />;
+  if (type === "like") return <Heart className="h-6 w-6 fill-primary text-primary" />;
   if (type === "reply") return <MessageCircle className="h-6 w-6 text-primary" />;
   if (type === "follow") return <UserPlus className="h-6 w-6 text-green-500" />;
   if (type === "repost") return <Repeat2 className="h-6 w-6 text-green-500" />;
