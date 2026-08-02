@@ -250,6 +250,36 @@ export type Database = {
           },
         ]
       }
+      notification_settings: {
+        Row: {
+          created_at: string
+          email_follows: boolean
+          email_likes: boolean
+          email_replies: boolean
+          email_reposts: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email_follows?: boolean
+          email_likes?: boolean
+          email_replies?: boolean
+          email_reposts?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email_follows?: boolean
+          email_likes?: boolean
+          email_replies?: boolean
+          email_reposts?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           actor_id: string
