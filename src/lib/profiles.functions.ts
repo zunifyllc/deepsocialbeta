@@ -16,6 +16,8 @@ export interface Profile {
   avatar_url: string | null;
   banner_url: string | null;
   pinned_post_id: string | null;
+  accent_color: string;
+  theme_mode: "dark" | "black";
   created_at: string;
   updated_at: string;
 }
@@ -28,7 +30,13 @@ const profileSchema = z.object({
   pronouns: z.string().max(20).nullish(),
   avatar_url: z.string().url().nullish(),
   banner_url: z.string().url().nullish(),
+  accent_color: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/, "Accent color must be a hex value like #1d9bf0")
+    .optional(),
+  theme_mode: z.enum(["dark", "black"]).optional(),
 });
+
 
 export const getProfileByUsername = createServerFn({ method: "GET" })
   .validator((input) => z.object({ username: z.string() }).parse(input))
