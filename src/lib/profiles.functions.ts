@@ -16,6 +16,7 @@ export interface Profile {
   avatar_url: string | null;
   banner_url: string | null;
   pinned_post_id: string | null;
+  is_verified: boolean;
   accent_color: string;
   theme_mode: "dark" | "black";
   created_at: string;
