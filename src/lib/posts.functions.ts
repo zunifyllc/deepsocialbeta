@@ -23,6 +23,8 @@ export interface Post {
   repost_count: number;
   created_at: string;
   updated_at: string;
+  edited_at?: string | null;
+  is_edited?: boolean;
   author: PostAuthor | null;
   /** Present when this feed item is a repost of the post above. */
   repost?: {
