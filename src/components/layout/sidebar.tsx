@@ -1,7 +1,10 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Home, Search, Bell, Mail, Bookmark, List, User, Settings, Palette, Feather, Waves } from "lucide-react";
+import { Home, Search, Bell, Mail, Bookmark, List, User, Settings, Palette, Feather, Waves, ShieldCheck } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
+import { getMyAdminStatus } from "@/lib/admin.functions";
 
 const navItems = [
   { icon: Home, label: "Home", href: "/home" },
@@ -19,8 +22,18 @@ const navItems = [
 export function Sidebar() {
   const { user, profile, signOut } = useAuth();
   const location = useLocation();
+  const fetchAdminStatus = useServerFn(getMyAdminStatus);
+  const { data: adminStatus } = useQuery({
+    queryKey: ["admin-status"],
+    queryFn: () => fetchAdminStatus({}),
+    enabled: !!user,
+  });
 
   if (!user) return null;
+
+  const items = adminStatus?.isAdmin
+    ? [...navItems, { icon: ShieldCheck, label: "Admin", href: "/admin" }]
+    : navItems;
 
   return (
     <div className="hidden h-full flex-col justify-between border-r border-border bg-background px-2 py-4 md:flex lg:px-4">
