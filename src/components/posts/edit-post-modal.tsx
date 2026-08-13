@@ -30,9 +30,9 @@ export function EditPostModal({ post, open, onOpenChange, onEdited }: EditPostMo
     onSuccess: (updated) => {
       // Patch every cached feed that already contains this post, so the new
       // text shows instantly without refetching the whole timeline.
-      queryClient.setQueriesData<unknown>({ queryKey: ["posts"] }, (old) => patchPost(old, updated));
-      queryClient.setQueriesData<unknown>({ queryKey: ["feed"] }, (old) => patchPost(old, updated));
-      queryClient.setQueriesData<unknown>({ queryKey: ["post", post.id] }, (old) => patchPost(old, updated));
+      queryClient.setQueriesData<unknown>({ queryKey: ["posts"] }, (old: unknown) => patchPost(old, updated));
+      queryClient.setQueriesData<unknown>({ queryKey: ["feed"] }, (old: unknown) => patchPost(old, updated));
+      queryClient.setQueriesData<unknown>({ queryKey: ["post", post.id] }, (old: unknown) => patchPost(old, updated));
       onEdited?.(updated as Post);
       onOpenChange(false);
       toast.success("Post updated");
