@@ -43,7 +43,7 @@ export function Sidebar() {
           <span className="hidden text-xl font-bold tracking-tight lg:inline">DeepSocial</span>
         </Link>
 
-        {navItems.map((item) => {
+        {items.map((item) => {
           const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + "/");
           return (
             <Link
