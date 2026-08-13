@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { editPost } from "@/lib/posts.functions";
 import type { Post } from "@/lib/posts.functions";
@@ -19,6 +20,7 @@ interface EditPostModalProps {
 export function EditPostModal({ post, open, onOpenChange, onEdited }: EditPostModalProps) {
   const [content, setContent] = useState(post.content);
   const queryClient = useQueryClient();
+  const router = useRouter();
   const submit = useServerFn(editPost);
 
   useEffect(() => {
@@ -33,6 +35,9 @@ export function EditPostModal({ post, open, onOpenChange, onEdited }: EditPostMo
       queryClient.setQueriesData<unknown>({ queryKey: ["posts"] }, (old: unknown) => patchPost(old, updated));
       queryClient.setQueriesData<unknown>({ queryKey: ["feed"] }, (old: unknown) => patchPost(old, updated));
       queryClient.setQueriesData<unknown>({ queryKey: ["post", post.id] }, (old: unknown) => patchPost(old, updated));
+      queryClient.setQueriesData<unknown>({ queryKey: ["replies"] }, (old: unknown) => patchPost(old, updated));
+      // Post detail reads its post from the route loader, not the query cache.
+      void router.invalidate();
       onEdited?.(updated as Post);
       onOpenChange(false);
       toast.success("Post updated");
