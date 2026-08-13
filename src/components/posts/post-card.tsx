@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { FolderPlus, MessageCircle, MoreHorizontal, Pin, PinOff, Repeat2, Share, Trash2 } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { FolderPlus, MessageCircle, MoreHorizontal, Pencil, Pin, PinOff, Repeat2, Share, Trash2 } from "lucide-react";
+import { format, formatDistanceToNow } from "date-fns";
 import { useAuth } from "@/hooks/use-auth";
 import type { Post } from "@/lib/posts.functions";
 import { LikeButton } from "./like-button";
@@ -12,6 +12,8 @@ import { PostContent } from "./post-content";
 import { MediaGrid } from "./media-grid";
 import { PollCard } from "./poll-card";
 import { SaveToCollectionDialog } from "./save-to-collection-dialog";
+import { EditPostModal } from "./edit-post-modal";
+import { canEditPost } from "@/lib/post-edit-helpers";
 import { togglePinPost } from "@/lib/profiles.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -47,7 +49,9 @@ export function PostCard({
   const togglePin = useServerFn(togglePinPost);
   const [quoteOpen, setQuoteOpen] = useState(false);
   const [collectionOpen, setCollectionOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const isOwner = user?.id === post.author?.id;
+  const canEdit = isOwner && canEditPost(post.created_at);
 
   if (!post.author) return null;
 
@@ -125,6 +129,14 @@ export function PostCard({
             >
               {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
             </Link>
+            {post.is_edited && (
+              <span
+                className="text-sm text-muted-foreground"
+                title={post.edited_at ? `Edited ${format(new Date(post.edited_at), "PPpp")}` : "Edited"}
+              >
+                · Edited{post.edited_at ? ` ${format(new Date(post.edited_at), "MMM d")}` : ""}
+              </span>
+            )}
 
             {user && (
               <div className="ml-auto flex-shrink-0">
@@ -139,6 +151,11 @@ export function PostCard({
                     <DropdownMenuItem onClick={() => setCollectionOpen(true)}>
                       <FolderPlus className="mr-2 h-4 w-4" /> Save to collection...
                     </DropdownMenuItem>
+                    {canEdit && (
+                      <DropdownMenuItem onClick={() => setEditOpen(true)}>
+                        <Pencil className="mr-2 h-4 w-4" /> Edit post
+                      </DropdownMenuItem>
+                    )}
                     {isOwner && (
                     <DropdownMenuItem onClick={handleTogglePin}>
                       {isPinned ? (
@@ -223,6 +240,8 @@ export function PostCard({
         onOpenChange={setCollectionOpen}
         {...(onBookmarkChange ? { onSaved: onBookmarkChange } : {})}
       />
+
+      {canEdit && <EditPostModal post={post} open={editOpen} onOpenChange={setEditOpen} />}
 
       <RepostModal
         post={post}
