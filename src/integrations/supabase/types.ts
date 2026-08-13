@@ -430,7 +430,9 @@ export type Database = {
           author_id: string
           content: string
           created_at: string
+          edited_at: string | null
           id: string
+          is_edited: boolean
           like_count: number
           media_urls: string[] | null
           parent_post_id: string | null
@@ -442,7 +444,9 @@ export type Database = {
           author_id: string
           content: string
           created_at?: string
+          edited_at?: string | null
           id?: string
+          is_edited?: boolean
           like_count?: number
           media_urls?: string[] | null
           parent_post_id?: string | null
@@ -454,7 +458,9 @@ export type Database = {
           author_id?: string
           content?: string
           created_at?: string
+          edited_at?: string | null
           id?: string
+          is_edited?: boolean
           like_count?: number
           media_urls?: string[] | null
           parent_post_id?: string | null

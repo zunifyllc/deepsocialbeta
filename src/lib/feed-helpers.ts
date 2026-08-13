@@ -11,6 +11,8 @@ export const POST_WITH_AUTHOR = `
   repost_count,
   created_at,
   updated_at,
+  edited_at,
+  is_edited,
   author:profiles!posts_author_id_profiles_fkey(*),
   poll:polls!polls_post_id_fkey(id)
 `;

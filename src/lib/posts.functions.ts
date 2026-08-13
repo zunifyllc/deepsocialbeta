@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { createPublicClient } from "./supabase-public";
 import { fetchRepostFeedItems, mergeFeedItems, POST_WITH_AUTHOR } from "./feed-helpers";
 import { hoursToInterval, pollInputSchema } from "./poll-helpers";
+import { canEditPost } from "./post-edit-helpers";
 
 export interface PostAuthor {
   id: string;
@@ -23,6 +24,8 @@ export interface Post {
   repost_count: number;
   created_at: string;
   updated_at: string;
+  edited_at?: string | null;
+  is_edited?: boolean;
   author: PostAuthor | null;
   /** Present when this feed item is a repost of the post above. */
   repost?: {
@@ -196,6 +199,36 @@ export const createPost = createServerFn({ method: "POST" })
     }
 
     return created;
+  });
+
+export const editPost = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input) =>
+    z.object({ postId: z.string().uuid(), newContent: z.string().min(1).max(280) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: existing, error: fetchError } = await context.supabase
+      .from("posts")
+      .select("id, author_id, created_at")
+      .eq("id", data.postId)
+      .maybeSingle();
+    if (fetchError) throw fetchError;
+    if (!existing || existing.author_id !== context.userId) {
+      throw new Error("You can only edit your own posts");
+    }
+    if (!canEditPost(existing.created_at)) {
+      throw new Error("Editing window has expired");
+    }
+
+    const { data: post, error } = await context.supabase
+      .from("posts")
+      .update({ content: data.newContent, edited_at: new Date().toISOString(), is_edited: true })
+      .eq("id", data.postId)
+      .eq("author_id", context.userId)
+      .select(POST_WITH_AUTHOR)
+      .single();
+    if (error) throw error;
+    return post as unknown as Post;
   });
 
 export const deletePost = createServerFn({ method: "POST" })
