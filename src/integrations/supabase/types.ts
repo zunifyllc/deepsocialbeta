@@ -438,6 +438,8 @@ export type Database = {
           parent_post_id: string | null
           reply_count: number
           repost_count: number
+          scheduled_at: string | null
+          status: string
           updated_at: string
         }
         Insert: {
@@ -452,6 +454,8 @@ export type Database = {
           parent_post_id?: string | null
           reply_count?: number
           repost_count?: number
+          scheduled_at?: string | null
+          status?: string
           updated_at?: string
         }
         Update: {
@@ -466,6 +470,8 @@ export type Database = {
           parent_post_id?: string | null
           reply_count?: number
           repost_count?: number
+          scheduled_at?: string | null
+          status?: string
           updated_at?: string
         }
         Relationships: [
@@ -645,6 +651,7 @@ export type Database = {
         Returns: boolean
       }
       is_poll_open: { Args: { _poll_id: string }; Returns: boolean }
+      publish_scheduled_posts: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
