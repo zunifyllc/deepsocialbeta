@@ -5,6 +5,7 @@ import { createPublicClient } from "./supabase-public";
 import { fetchRepostFeedItems, mergeFeedItems, POST_WITH_AUTHOR } from "./feed-helpers";
 import { hoursToInterval, pollInputSchema } from "./poll-helpers";
 import { canEditPost } from "./post-edit-helpers";
+import { assertFutureSchedule, requireOwnScheduledPost } from "./schedule-helpers";
 
 export interface PostAuthor {
   id: string;
@@ -54,14 +55,6 @@ const createPostSchema = z.object({
   scheduledAt: z.string().datetime().nullable().optional(),
 });
 
-/** Scheduled posts must be at least this far in the future. */
-const MIN_SCHEDULE_LEAD_MS = 5 * 60 * 1000;
-
-function assertFutureSchedule(scheduledAt: string) {
-  if (new Date(scheduledAt).getTime() - Date.now() < MIN_SCHEDULE_LEAD_MS) {
-    throw new Error("Pick a time at least 5 minutes from now");
-  }
-}
 
 export const getFeed = createServerFn({ method: "GET" })
   .validator((input) =>
@@ -296,21 +289,6 @@ export const getScheduledPosts = createServerFn({ method: "GET" })
     if (error) throw error;
     return (posts ?? []) as unknown as Post[];
   });
-
-async function requireOwnScheduledPost(
-  supabase: { from: (t: "posts") => any },
-  postId: string,
-  userId: string,
-) {
-  const { data, error } = await supabase
-    .from("posts")
-    .select("id, author_id, status")
-    .eq("id", postId)
-    .maybeSingle();
-  if (error) throw error;
-  if (!data || data.author_id !== userId) throw new Error("You can only manage your own posts");
-  if (data.status !== "scheduled") throw new Error("This post is already published");
-}
 
 export const publishNow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
