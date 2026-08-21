@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from "react";
-import { Image as ImageIcon, X, Loader2, BarChart2 } from "lucide-react";
+import { Image as ImageIcon, X, Loader2, BarChart2, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/use-auth";
 import { useServerFn } from "@tanstack/react-start";
 import { createPost } from "@/lib/posts.functions";
 import { PollComposer, type PollDraft } from "./poll-composer";
+import { isValidScheduleTime, localInputToIso, formatScheduleTime } from "@/lib/schedule-helpers";
 import {
   ALLOWED_MEDIA_TYPES,
   MAX_MEDIA_PER_POST,
@@ -42,6 +43,8 @@ export function PostComposer({
   const [isDragging, setIsDragging] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [poll, setPoll] = useState<PollDraft | null>(null);
+  const [scheduleValue, setScheduleValue] = useState("");
+  const [showSchedule, setShowSchedule] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const submit = useServerFn(createPost);
 
@@ -58,8 +61,15 @@ export function PostComposer({
   const remaining = 280 - content.length;
   const pollOptions = poll ? poll.options.map((o) => o.trim()).filter(Boolean) : [];
   const pollValid = !poll || pollOptions.length >= 2;
+  const scheduleIso = scheduleValue ? localInputToIso(scheduleValue) : null;
+  const scheduleValid = !scheduleValue || isValidScheduleTime(scheduleValue);
   const canSubmit =
-    content.trim().length > 0 && content.length <= 280 && !isUploading && !isSubmitting && pollValid;
+    content.trim().length > 0 &&
+    content.length <= 280 &&
+    !isUploading &&
+    !isSubmitting &&
+    pollValid &&
+    scheduleValid;
 
   const addFiles = async (fileList: FileList | File[]) => {
     setError(null);
@@ -111,6 +121,7 @@ export function PostComposer({
           content: content.trim(),
           parentPostId,
           mediaUrls,
+          ...(scheduleValid && scheduleIso ? { scheduledAt: scheduleIso } : {}),
           ...(poll ? { poll: { options: pollOptions, durationHours: poll.durationHours } } : {}),
         },
       });
@@ -118,6 +129,8 @@ export function PostComposer({
       setContent("");
       setMedia([]);
       setPoll(null);
+      setScheduleValue("");
+      setShowSchedule(false);
       setError(null);
       onSuccess?.();
     } catch {
@@ -197,6 +210,32 @@ export function PostComposer({
             </p>
           )}
 
+          {showSchedule && !parentPostId && (
+            <div className="mt-3 rounded-xl border border-border p-3">
+              <label className="block text-sm font-medium" htmlFor="schedule-at">
+                Schedule for later
+              </label>
+              <input
+                id="schedule-at"
+                data-testid="composer-schedule-input"
+                type="datetime-local"
+                value={scheduleValue}
+                onChange={(e) => setScheduleValue(e.target.value)}
+                className="mt-2 w-full rounded-lg border border-border bg-transparent p-2 text-sm"
+              />
+              {scheduleValue && !scheduleValid && (
+                <p role="alert" className="mt-2 text-sm text-destructive">
+                  Pick a time at least 5 minutes from now.
+                </p>
+              )}
+              {scheduleValue && scheduleValid && scheduleIso && (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Will be posted on {formatScheduleTime(scheduleIso)}
+                </p>
+              )}
+            </div>
+          )}
+
           {error && (
             <p role="alert" className="mt-2 text-sm text-destructive">
               {error}
@@ -231,6 +270,20 @@ export function PostComposer({
               {!parentPostId && (
                 <button
                   type="button"
+                  aria-label="Schedule post"
+                  data-testid="composer-schedule-toggle"
+                  onClick={() => {
+                    setShowSchedule((prev) => !prev);
+                    if (showSchedule) setScheduleValue("");
+                  }}
+                  className={`rounded-full p-2 transition-colors hover:bg-primary/10 ${showSchedule ? "bg-primary/10 text-primary" : "text-primary"}`}
+                >
+                  <Clock className="h-5 w-5" />
+                </button>
+              )}
+              {!parentPostId && (
+                <button
+                  type="button"
                   aria-label="Add poll"
                   data-testid="composer-add-poll"
                   onClick={() =>
@@ -253,7 +306,13 @@ export function PostComposer({
                 disabled={!canSubmit}
                 className="rounded-full bg-primary px-5 font-bold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
               >
-                {isSubmitting ? "Posting..." : buttonText}
+                {isSubmitting
+                  ? scheduleIso && scheduleValid
+                    ? "Scheduling..."
+                    : "Posting..."
+                  : scheduleIso && scheduleValid
+                    ? "Schedule"
+                    : buttonText}
               </Button>
             </div>
           </div>
