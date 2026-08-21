@@ -13,6 +13,8 @@ export const POST_WITH_AUTHOR = `
   updated_at,
   edited_at,
   is_edited,
+  status,
+  scheduled_at,
   author:profiles!posts_author_id_profiles_fkey(*),
   poll:polls!polls_post_id_fkey(id)
 `;

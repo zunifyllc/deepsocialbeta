@@ -26,6 +26,8 @@ export interface Post {
   updated_at: string;
   edited_at?: string | null;
   is_edited?: boolean;
+  status?: string;
+  scheduled_at?: string | null;
   author: PostAuthor | null;
   /** Present when this feed item is a repost of the post above. */
   repost?: {
@@ -49,7 +51,17 @@ const createPostSchema = z.object({
   parentPostId: z.string().uuid().optional(),
   mediaUrls: z.array(z.string().min(1).max(500)).max(4).default([]),
   poll: pollInputSchema.optional(),
+  scheduledAt: z.string().datetime().nullable().optional(),
 });
+
+/** Scheduled posts must be at least this far in the future. */
+const MIN_SCHEDULE_LEAD_MS = 5 * 60 * 1000;
+
+function assertFutureSchedule(scheduledAt: string) {
+  if (new Date(scheduledAt).getTime() - Date.now() < MIN_SCHEDULE_LEAD_MS) {
+    throw new Error("Pick a time at least 5 minutes from now");
+  }
+}
 
 export const getFeed = createServerFn({ method: "GET" })
   .validator((input) =>
@@ -66,6 +78,7 @@ export const getFeed = createServerFn({ method: "GET" })
     let query = supabase
       .from("posts")
       .select(POST_WITH_AUTHOR)
+      .eq("status", "published")
       .is("parent_post_id", null)
       .order("created_at", { ascending: false })
       .limit(data.limit);
@@ -109,6 +122,7 @@ export const getReplies = createServerFn({ method: "GET" })
     const { data: replies, error } = await supabase
       .from("posts")
       .select(POST_WITH_AUTHOR)
+      .eq("status", "published")
       .eq("parent_post_id", data.postId)
       .order("created_at", { ascending: true });
     if (error) throw error;
@@ -131,6 +145,7 @@ export const getUserPosts = createServerFn({ method: "GET" })
       .from("posts")
       .select(POST_WITH_AUTHOR)
       .eq("author_id", data.userId)
+      .eq("status", "published")
       .is("parent_post_id", null)
       .order("created_at", { ascending: false })
       .limit(data.limit);
@@ -159,6 +174,7 @@ export const createPost = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input) => createPostSchema.parse(input))
   .handler(async ({ data, context }) => {
+    if (data.scheduledAt) assertFutureSchedule(data.scheduledAt);
     const { data: post, error } = await context.supabase
       .from("posts")
       .insert({
@@ -166,6 +182,9 @@ export const createPost = createServerFn({ method: "POST" })
         content: data.content,
         parent_post_id: data.parentPostId ?? null,
         media_urls: data.mediaUrls,
+        status: data.scheduledAt ? "scheduled" : "published",
+        scheduled_at: data.scheduledAt ?? null,
+        ...(data.scheduledAt ? { created_at: data.scheduledAt } : {}),
       })
       .select(POST_WITH_AUTHOR)
       .single();
@@ -263,4 +282,95 @@ export const getUserLikedPosts = createServerFn({ method: "GET" })
     return ((rows ?? [])
       .map((row) => (row as unknown as { post: Post | null }).post)
       .filter(Boolean)) as Post[];
+  });
+
+export const getScheduledPosts = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: posts, error } = await context.supabase
+      .from("posts")
+      .select(POST_WITH_AUTHOR)
+      .eq("author_id", context.userId)
+      .eq("status", "scheduled")
+      .order("scheduled_at", { ascending: true });
+    if (error) throw error;
+    return (posts ?? []) as unknown as Post[];
+  });
+
+async function requireOwnScheduledPost(
+  supabase: { from: (t: "posts") => any },
+  postId: string,
+  userId: string,
+) {
+  const { data, error } = await supabase
+    .from("posts")
+    .select("id, author_id, status")
+    .eq("id", postId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data || data.author_id !== userId) throw new Error("You can only manage your own posts");
+  if (data.status !== "scheduled") throw new Error("This post is already published");
+}
+
+export const publishNow = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input) => z.object({ postId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    await requireOwnScheduledPost(context.supabase, data.postId, context.userId);
+    const { error } = await context.supabase
+      .from("posts")
+      .update({ status: "published", scheduled_at: null, created_at: new Date().toISOString() })
+      .eq("id", data.postId)
+      .eq("author_id", context.userId);
+    if (error) throw error;
+    return { success: true };
+  });
+
+export const cancelScheduledPost = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input) => z.object({ postId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    await requireOwnScheduledPost(context.supabase, data.postId, context.userId);
+    const { error } = await context.supabase
+      .from("posts")
+      .delete()
+      .eq("id", data.postId)
+      .eq("author_id", context.userId);
+    if (error) throw error;
+    return { success: true };
+  });
+
+export const updateScheduledPost = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input) =>
+    z
+      .object({
+        postId: z.string().uuid(),
+        content: z.string().min(1).max(280).optional(),
+        mediaUrls: z.array(z.string().min(1).max(500)).max(4).optional(),
+        scheduledAt: z.string().datetime().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await requireOwnScheduledPost(context.supabase, data.postId, context.userId);
+    if (data.scheduledAt) assertFutureSchedule(data.scheduledAt);
+
+    const updates: Record<string, unknown> = {};
+    if (data.content !== undefined) updates["content"] = data.content;
+    if (data.mediaUrls !== undefined) updates["media_urls"] = data.mediaUrls;
+    if (data.scheduledAt !== undefined) {
+      updates["scheduled_at"] = data.scheduledAt;
+      updates["created_at"] = data.scheduledAt;
+    }
+
+    const { data: post, error } = await context.supabase
+      .from("posts")
+      .update(updates)
+      .eq("id", data.postId)
+      .eq("author_id", context.userId)
+      .select(POST_WITH_AUTHOR)
+      .single();
+    if (error) throw error;
+    return post as unknown as Post;
   });
