@@ -30,6 +30,7 @@ import { Route as AuthenticatedSettingsDisplayRouteImport } from './routes/_auth
 import { Route as AuthenticatedSettingsNotificationsRouteImport } from './routes/_authenticated/settings.notifications'
 import { Route as AuthenticatedSettingsProfileRouteImport } from './routes/_authenticated/settings.profile'
 import { Route as AuthenticatedAnalyticsPostPostIdRouteImport } from './routes/_authenticated/analytics.post.$postId'
+import { Route as AuthenticatedAnalyticsProfileUsernameRouteImport } from './routes/_authenticated/analytics.profile.$username'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -144,6 +145,12 @@ const AuthenticatedAnalyticsPostPostIdRoute =
     path: '/analytics/post/$postId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAnalyticsProfileUsernameRoute =
+  AuthenticatedAnalyticsProfileUsernameRouteImport.update({
+    id: '/analytics/profile/$username',
+    path: '/analytics/profile/$username',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -166,6 +173,7 @@ export interface FileRoutesByFullPath {
   '/lists/': typeof AuthenticatedListsIndexRoute
   '/messages/': typeof AuthenticatedMessagesIndexRoute
   '/analytics/post/$postId': typeof AuthenticatedAnalyticsPostPostIdRoute
+  '/analytics/profile/$username': typeof AuthenticatedAnalyticsProfileUsernameRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -187,6 +195,7 @@ export interface FileRoutesByTo {
   '/lists': typeof AuthenticatedListsIndexRoute
   '/messages': typeof AuthenticatedMessagesIndexRoute
   '/analytics/post/$postId': typeof AuthenticatedAnalyticsPostPostIdRoute
+  '/analytics/profile/$username': typeof AuthenticatedAnalyticsProfileUsernameRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -211,6 +220,7 @@ export interface FileRoutesById {
   '/_authenticated/lists/': typeof AuthenticatedListsIndexRoute
   '/_authenticated/messages/': typeof AuthenticatedMessagesIndexRoute
   '/_authenticated/analytics/post/$postId': typeof AuthenticatedAnalyticsPostPostIdRoute
+  '/_authenticated/analytics/profile/$username': typeof AuthenticatedAnalyticsProfileUsernameRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -235,6 +245,7 @@ export interface FileRouteTypes {
     | '/lists/'
     | '/messages/'
     | '/analytics/post/$postId'
+    | '/analytics/profile/$username'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -256,6 +267,7 @@ export interface FileRouteTypes {
     | '/lists'
     | '/messages'
     | '/analytics/post/$postId'
+    | '/analytics/profile/$username'
   id:
     | '__root__'
     | '/'
@@ -279,6 +291,7 @@ export interface FileRouteTypes {
     | '/_authenticated/lists/'
     | '/_authenticated/messages/'
     | '/_authenticated/analytics/post/$postId'
+    | '/_authenticated/analytics/profile/$username'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -440,6 +453,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAnalyticsPostPostIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/analytics/profile/$username': {
+      id: '/_authenticated/analytics/profile/$username'
+      path: '/analytics/profile/$username'
+      fullPath: '/analytics/profile/$username'
+      preLoaderRoute: typeof AuthenticatedAnalyticsProfileUsernameRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -472,6 +492,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSettingsProfileRoute: typeof AuthenticatedSettingsProfileRoute
   AuthenticatedListsIndexRoute: typeof AuthenticatedListsIndexRoute
   AuthenticatedAnalyticsPostPostIdRoute: typeof AuthenticatedAnalyticsPostPostIdRoute
+  AuthenticatedAnalyticsProfileUsernameRoute: typeof AuthenticatedAnalyticsProfileUsernameRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -488,6 +509,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSettingsProfileRoute: AuthenticatedSettingsProfileRoute,
   AuthenticatedListsIndexRoute: AuthenticatedListsIndexRoute,
   AuthenticatedAnalyticsPostPostIdRoute: AuthenticatedAnalyticsPostPostIdRoute,
+  AuthenticatedAnalyticsProfileUsernameRoute:
+    AuthenticatedAnalyticsProfileUsernameRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

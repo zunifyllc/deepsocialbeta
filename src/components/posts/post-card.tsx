@@ -151,6 +151,13 @@ export function PostCard({
                     <DropdownMenuItem onClick={() => setCollectionOpen(true)}>
                       <FolderPlus className="mr-2 h-4 w-4" /> Save to collection...
                     </DropdownMenuItem>
+                    {isOwner && (
+                      <DropdownMenuItem asChild>
+                        <Link to="/analytics/post/$postId" params={{ postId: post.id }}>
+                          <BarChart3 className="mr-2 h-4 w-4" /> View analytics
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
                     {canEdit && (
                       <DropdownMenuItem onClick={() => setEditOpen(true)}>
                         <Pencil className="mr-2 h-4 w-4" /> Edit post
