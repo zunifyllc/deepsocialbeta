@@ -29,6 +29,7 @@ import { Route as AuthenticatedMessagesConversationIdRouteImport } from './route
 import { Route as AuthenticatedSettingsDisplayRouteImport } from './routes/_authenticated/settings.display'
 import { Route as AuthenticatedSettingsNotificationsRouteImport } from './routes/_authenticated/settings.notifications'
 import { Route as AuthenticatedSettingsProfileRouteImport } from './routes/_authenticated/settings.profile'
+import { Route as AuthenticatedAnalyticsPostPostIdRouteImport } from './routes/_authenticated/analytics.post.$postId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -137,6 +138,12 @@ const AuthenticatedSettingsProfileRoute =
     path: '/settings/profile',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAnalyticsPostPostIdRoute =
+  AuthenticatedAnalyticsPostPostIdRouteImport.update({
+    id: '/analytics/post/$postId',
+    path: '/analytics/post/$postId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -158,6 +165,7 @@ export interface FileRoutesByFullPath {
   '/settings/profile': typeof AuthenticatedSettingsProfileRoute
   '/lists/': typeof AuthenticatedListsIndexRoute
   '/messages/': typeof AuthenticatedMessagesIndexRoute
+  '/analytics/post/$postId': typeof AuthenticatedAnalyticsPostPostIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -178,6 +186,7 @@ export interface FileRoutesByTo {
   '/settings/profile': typeof AuthenticatedSettingsProfileRoute
   '/lists': typeof AuthenticatedListsIndexRoute
   '/messages': typeof AuthenticatedMessagesIndexRoute
+  '/analytics/post/$postId': typeof AuthenticatedAnalyticsPostPostIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -201,6 +210,7 @@ export interface FileRoutesById {
   '/_authenticated/settings/profile': typeof AuthenticatedSettingsProfileRoute
   '/_authenticated/lists/': typeof AuthenticatedListsIndexRoute
   '/_authenticated/messages/': typeof AuthenticatedMessagesIndexRoute
+  '/_authenticated/analytics/post/$postId': typeof AuthenticatedAnalyticsPostPostIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -224,6 +234,7 @@ export interface FileRouteTypes {
     | '/settings/profile'
     | '/lists/'
     | '/messages/'
+    | '/analytics/post/$postId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -244,6 +255,7 @@ export interface FileRouteTypes {
     | '/settings/profile'
     | '/lists'
     | '/messages'
+    | '/analytics/post/$postId'
   id:
     | '__root__'
     | '/'
@@ -266,6 +278,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings/profile'
     | '/_authenticated/lists/'
     | '/_authenticated/messages/'
+    | '/_authenticated/analytics/post/$postId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -420,6 +433,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsProfileRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/analytics/post/$postId': {
+      id: '/_authenticated/analytics/post/$postId'
+      path: '/analytics/post/$postId'
+      fullPath: '/analytics/post/$postId'
+      preLoaderRoute: typeof AuthenticatedAnalyticsPostPostIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -451,6 +471,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSettingsNotificationsRoute: typeof AuthenticatedSettingsNotificationsRoute
   AuthenticatedSettingsProfileRoute: typeof AuthenticatedSettingsProfileRoute
   AuthenticatedListsIndexRoute: typeof AuthenticatedListsIndexRoute
+  AuthenticatedAnalyticsPostPostIdRoute: typeof AuthenticatedAnalyticsPostPostIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -466,6 +487,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedSettingsNotificationsRoute,
   AuthenticatedSettingsProfileRoute: AuthenticatedSettingsProfileRoute,
   AuthenticatedListsIndexRoute: AuthenticatedListsIndexRoute,
+  AuthenticatedAnalyticsPostPostIdRoute: AuthenticatedAnalyticsPostPostIdRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
