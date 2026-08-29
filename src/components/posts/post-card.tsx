@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { FolderPlus, MessageCircle, MoreHorizontal, Pencil, Pin, PinOff, Repeat2, Share, Trash2 } from "lucide-react";
+import { BarChart3, FolderPlus, MessageCircle, MoreHorizontal, Pencil, Pin, PinOff, Repeat2, Share, Trash2 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { useAuth } from "@/hooks/use-auth";
 import type { Post } from "@/lib/posts.functions";
