@@ -1,4 +1,7 @@
+import { useEffect } from "react";
 import { createFileRoute, notFound } from "@tanstack/react-router";
+import { useAuth } from "@/hooks/use-auth";
+import { recordPostImpression } from "@/lib/analytics.functions";
 import { useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import { Link } from "@tanstack/react-router";
@@ -36,6 +39,14 @@ function PostDetailPage() {
   const queryClient = useQueryClient();
   const { data: replies } = useSuspenseQuery(repliesQueryOptions(post.id));
   const remove = useServerFn(deletePost);
+  const { user } = useAuth();
+  const recordImpression = useServerFn(recordPostImpression);
+
+  useEffect(() => {
+    if (!user || user.id === post.author?.id) return;
+    recordImpression({ data: { postId: post.id } }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, post.id]);
 
   const handleDelete = async (id: string) => {
     await remove({ data: { id } });

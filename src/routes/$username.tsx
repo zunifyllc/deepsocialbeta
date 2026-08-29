@@ -1,5 +1,5 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSuspenseQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/components/layout/app-shell";
 import { ProfileHeader } from "@/components/profile/profile-header";
@@ -11,6 +11,7 @@ import { getUserReposts } from "@/lib/reposts.functions";
 import type { ProfileTab } from "@/components/profile/profile-header";
 import { useServerFn } from "@tanstack/react-start";
 import { useAuth } from "@/hooks/use-auth";
+import { recordProfileVisit } from "@/lib/analytics.functions";
 
 export const Route = createFileRoute("/$username")({
   head: () => ({
@@ -69,6 +70,13 @@ function ProfilePage() {
   const isOwnProfile = user?.id === profile.id;
   const { data: likedPosts } = useQuery(likedPostsQueryOptions(profile.id, activeTab === "likes" && isOwnProfile));
   const remove = useServerFn(deletePost);
+  const recordVisit = useServerFn(recordProfileVisit);
+
+  useEffect(() => {
+    if (!user || isOwnProfile) return;
+    recordVisit({ data: { profileId: profile.id } }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, profile.id, isOwnProfile]);
 
   const handleDelete = async (id: string) => {
     await remove({ data: { id } });
