@@ -1,4 +1,7 @@
+import { useEffect } from "react";
 import { createFileRoute, notFound } from "@tanstack/react-router";
+import { useAuth } from "@/hooks/use-auth";
+import { recordPostImpression } from "@/lib/analytics.functions";
 import { useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import { Link } from "@tanstack/react-router";
