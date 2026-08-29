@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      blocked_users: {
+        Row: {
+          blocked_by: string
+          blocked_user_id: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          blocked_by: string
+          blocked_user_id: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          blocked_by?: string
+          blocked_user_id?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: []
+      }
       bookmark_collections: {
         Row: {
           created_at: string
@@ -249,6 +270,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      muted_users: {
+        Row: {
+          created_at: string
+          id: string
+          muted_by: string
+          muted_user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          muted_by: string
+          muted_user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          muted_by?: string
+          muted_user_id?: string
+        }
+        Relationships: []
       }
       notification_settings: {
         Row: {
@@ -696,6 +738,7 @@ export type Database = {
       }
       increment_like_count: { Args: { post_id: string }; Returns: undefined }
       increment_reply_count: { Args: { post_id: string }; Returns: undefined }
+      is_blocked_between: { Args: { _a: string; _b: string }; Returns: boolean }
       is_conversation_participant: {
         Args: { _conversation_id: string; _user_id: string }
         Returns: boolean
