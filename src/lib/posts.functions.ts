@@ -334,7 +334,12 @@ export const updateScheduledPost = createServerFn({ method: "POST" })
     await requireOwnScheduledPost(context.supabase, data.postId, context.userId);
     if (data.scheduledAt) assertFutureSchedule(data.scheduledAt);
 
-    const updates: Record<string, unknown> = {};
+    const updates: {
+      content?: string;
+      media_urls?: string[] | null;
+      scheduled_at?: string;
+      created_at?: string;
+    } = {};
     if (data.content !== undefined) updates["content"] = data.content;
     if (data.mediaUrls !== undefined) updates["media_urls"] = data.mediaUrls;
     if (data.scheduledAt !== undefined) {
