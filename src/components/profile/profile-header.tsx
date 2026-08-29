@@ -92,11 +92,18 @@ export function ProfileHeader({
 
         <div className="mt-20 flex justify-end gap-2">
           {isOwner ? (
-            <Link to="/settings/profile">
-              <Button variant="outline" className="rounded-full border-border bg-transparent font-bold text-foreground hover:bg-accent">
-                Edit profile
-              </Button>
-            </Link>
+            <>
+              <Link to="/analytics/profile/$username" params={{ username: profile.username }}>
+                <Button variant="outline" className="rounded-full border-border bg-transparent font-bold text-foreground hover:bg-accent">
+                  Analytics
+                </Button>
+              </Link>
+              <Link to="/settings/profile">
+                <Button variant="outline" className="rounded-full border-border bg-transparent font-bold text-foreground hover:bg-accent">
+                  Edit profile
+                </Button>
+              </Link>
+            </>
           ) : (
             <>
               <AddToListMenu userId={profile.id} />
