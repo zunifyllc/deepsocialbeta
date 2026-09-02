@@ -31,17 +31,19 @@ export const searchAll = createServerFn({ method: "GET" })
 
     const pattern = `%${escapeLike(term)}%`;
     const supabase = createPublicClient();
+    const { getViewerHiddenAuthorIds, excludeAuthors } = await import("./privacy-helpers.server");
+    const hidden = await getViewerHiddenAuthorIds();
 
-    const usersQuery = supabase
+    const usersQuery = excludeAuthors(supabase
       .from("profiles")
-      .select("*")
+      .select("*"), hidden, "id")
       .or(`username.ilike.${pattern},display_name.ilike.${pattern}`)
       .limit(data.userLimit);
 
-    let postsQuery = supabase
+    let postsQuery = excludeAuthors(supabase
       .from("posts")
       .select(POST_WITH_AUTHOR)
-      .ilike("content", pattern)
+      .ilike("content", pattern), hidden)
       .range(data.postOffset, data.postOffset + data.postLimit - 1);
 
     postsQuery =

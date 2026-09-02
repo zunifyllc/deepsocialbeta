@@ -6,6 +6,16 @@ export const toggleLike = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input) => z.object({ postId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
+    const { data: target } = await context.supabase
+      .from("posts")
+      .select("author_id")
+      .eq("id", data.postId)
+      .maybeSingle();
+    if (target && target.author_id !== context.userId) {
+      const { assertNotBlocked } = await import("./privacy-helpers.server");
+      await assertNotBlocked(context.userId, target.author_id);
+    }
+
     const { data: existing } = await context.supabase
       .from("likes")
       .select("id")

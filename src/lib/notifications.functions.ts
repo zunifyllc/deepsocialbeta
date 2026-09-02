@@ -48,10 +48,16 @@ const SELECT = `
 export const getNotifications = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data: notifications, error } = await context.supabase
-      .from("notifications")
-      .select(SELECT)
-      .eq("user_id", context.userId)
+    const { getHiddenAuthorIds, excludeAuthors } = await import("./privacy-helpers.server");
+    const hidden = await getHiddenAuthorIds(context.userId);
+    const { data: notifications, error } = await excludeAuthors(
+      context.supabase
+        .from("notifications")
+        .select(SELECT)
+        .eq("user_id", context.userId),
+      hidden,
+      "actor_id",
+    )
       .order("created_at", { ascending: false })
       .limit(50);
     if (error) throw error;
@@ -72,10 +78,13 @@ export const getGroupedNotifications = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }) => {
     const from = data.page * PAGE_ROWS;
-    let query = context.supabase
-      .from("notifications")
-      .select(SELECT)
-      .eq("user_id", context.userId)
+    const { getHiddenAuthorIds, excludeAuthors } = await import("./privacy-helpers.server");
+    const hidden = await getHiddenAuthorIds(context.userId);
+    let query = excludeAuthors(
+      context.supabase.from("notifications").select(SELECT).eq("user_id", context.userId),
+      hidden,
+      "actor_id",
+    )
       .order("created_at", { ascending: false })
       .range(from, from + PAGE_ROWS);
 
