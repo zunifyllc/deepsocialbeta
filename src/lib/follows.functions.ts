@@ -11,6 +11,9 @@ export const toggleFollow = createServerFn({ method: "POST" })
       throw new Error("Cannot follow yourself");
     }
 
+    const { assertNotBlocked } = await import("./privacy-helpers.server");
+    await assertNotBlocked(context.userId, data.followingId);
+
     const { data: existing } = await context.supabase
       .from("follows")
       .select("id")
@@ -80,10 +83,13 @@ export const getSuggestedUsers = createServerFn({ method: "GET" })
   .validator((input) => z.object({ limit: z.number().min(1).max(20).default(5) }).parse(input))
   .handler(async ({ data }) => {
     const supabase = createPublicClient();
-    const { data: users, error } = await supabase
-      .from("profiles")
-      .select("id, username, display_name, avatar_url, bio")
-      .limit(data.limit);
+    const { getViewerHiddenAuthorIds, excludeAuthors } = await import("./privacy-helpers.server");
+    const hidden = await getViewerHiddenAuthorIds();
+    const { data: users, error } = await excludeAuthors(
+      supabase.from("profiles").select("id, username, display_name, avatar_url, bio"),
+      hidden,
+      "id",
+    ).limit(data.limit);
     if (error) throw error;
     return users ?? [];
   });

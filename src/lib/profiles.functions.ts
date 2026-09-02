@@ -21,6 +21,8 @@ export interface Profile {
   theme_mode: "dark" | "black";
   created_at: string;
   updated_at: string;
+  /** Set when a hard block hides this profile from the current viewer. */
+  blockState?: "by-me" | "by-them" | null;
 }
 
 const profileSchema = z.object({
@@ -49,7 +51,23 @@ export const getProfileByUsername = createServerFn({ method: "GET" })
       .eq("username", data.username)
       .maybeSingle();
     if (error) throw error;
-    return (profile ?? null) as unknown as Profile | null;
+    const found = (profile ?? null) as unknown as Profile | null;
+    if (!found) return null;
+
+    const { getViewerId, getBlockState } = await import("./privacy-helpers.server");
+    const viewerId = await getViewerId();
+    const blockState = viewerId ? await getBlockState(viewerId, found.id) : null;
+    if (!blockState) return found;
+
+    return {
+      ...found,
+      bio: null,
+      banner_url: null,
+      location: null,
+      website: null,
+      pinned_post_id: null,
+      blockState,
+    } as Profile;
   });
 
 export const getCurrentProfile = createServerFn({ method: "GET" })

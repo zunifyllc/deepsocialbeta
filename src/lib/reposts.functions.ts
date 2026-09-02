@@ -26,6 +26,16 @@ export const toggleRepost = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
+    const { data: target } = await context.supabase
+      .from("posts")
+      .select("author_id")
+      .eq("id", data.postId)
+      .maybeSingle();
+    if (target && target.author_id !== context.userId) {
+      const { assertNotBlocked } = await import("./privacy-helpers.server");
+      await assertNotBlocked(context.userId, target.author_id);
+    }
+
     const { data: existing } = await context.supabase
       .from("reposts")
       .select("id")

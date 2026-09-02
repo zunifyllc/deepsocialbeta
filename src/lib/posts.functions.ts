@@ -68,11 +68,14 @@ export const getFeed = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     const supabase = createPublicClient();
-    let query = supabase
+    const { getViewerHiddenAuthorIds, excludeAuthors } = await import("./privacy-helpers.server");
+    const { filterVisiblePosts } = await import("./privacy-filters");
+    const hidden = await getViewerHiddenAuthorIds();
+    let query = excludeAuthors(supabase
       .from("posts")
       .select(POST_WITH_AUTHOR)
       .eq("status", "published")
-      .is("parent_post_id", null)
+      .is("parent_post_id", null), hidden)
       .order("created_at", { ascending: false })
       .limit(data.limit);
 
@@ -88,10 +91,9 @@ export const getFeed = createServerFn({ method: "GET" })
       ...(data.cursor ? { cursor: data.cursor } : {}),
     });
 
-    return mergeFeedItems(
-      (posts ?? []) as unknown as Post[],
-      reposts as unknown as Post[],
-      data.limit,
+    return filterVisiblePosts(
+      mergeFeedItems((posts ?? []) as unknown as Post[], reposts as unknown as Post[], data.limit),
+      hidden,
     );
   });
 
@@ -99,25 +101,33 @@ export const getPost = createServerFn({ method: "GET" })
   .validator((input) => z.object({ postId: z.string().uuid() }).parse(input))
   .handler(async ({ data }) => {
     const supabase = createPublicClient();
+    const { getViewerHiddenAuthorIds } = await import("./privacy-helpers.server");
+    const hidden = await getViewerHiddenAuthorIds();
     const { data: post, error } = await supabase
       .from("posts")
       .select(POST_WITH_AUTHOR)
       .eq("id", data.postId)
       .maybeSingle();
     if (error) throw error;
-    return (post ?? null) as unknown as Post | null;
+    const found = (post ?? null) as unknown as Post | null;
+    if (found?.author && hidden.includes(found.author.id)) return null;
+    return found;
   });
 
 export const getReplies = createServerFn({ method: "GET" })
   .validator((input) => z.object({ postId: z.string().uuid() }).parse(input))
   .handler(async ({ data }) => {
     const supabase = createPublicClient();
-    const { data: replies, error } = await supabase
-      .from("posts")
-      .select(POST_WITH_AUTHOR)
-      .eq("status", "published")
-      .eq("parent_post_id", data.postId)
-      .order("created_at", { ascending: true });
+    const { getViewerHiddenAuthorIds, excludeAuthors } = await import("./privacy-helpers.server");
+    const hidden = await getViewerHiddenAuthorIds();
+    const { data: replies, error } = await excludeAuthors(
+      supabase
+        .from("posts")
+        .select(POST_WITH_AUTHOR)
+        .eq("status", "published")
+        .eq("parent_post_id", data.postId),
+      hidden,
+    ).order("created_at", { ascending: true });
     if (error) throw error;
     return (replies ?? []) as unknown as Post[];
   });
@@ -134,6 +144,10 @@ export const getUserPosts = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     const supabase = createPublicClient();
+    const { getViewerHiddenAuthorIds } = await import("./privacy-helpers.server");
+    const { filterVisiblePosts } = await import("./privacy-filters");
+    const hidden = await getViewerHiddenAuthorIds();
+    if (hidden.includes(data.userId)) return [] as Post[];
     let query = supabase
       .from("posts")
       .select(POST_WITH_AUTHOR)
@@ -156,10 +170,9 @@ export const getUserPosts = createServerFn({ method: "GET" })
       ...(data.cursor ? { cursor: data.cursor } : {}),
     });
 
-    return mergeFeedItems(
-      (posts ?? []) as unknown as Post[],
-      reposts as unknown as Post[],
-      data.limit,
+    return filterVisiblePosts(
+      mergeFeedItems((posts ?? []) as unknown as Post[], reposts as unknown as Post[], data.limit),
+      hidden,
     );
   });
 
@@ -168,6 +181,17 @@ export const createPost = createServerFn({ method: "POST" })
   .validator((input) => createPostSchema.parse(input))
   .handler(async ({ data, context }) => {
     if (data.scheduledAt) assertFutureSchedule(data.scheduledAt);
+    if (data.parentPostId) {
+      const { data: parent } = await context.supabase
+        .from("posts")
+        .select("author_id")
+        .eq("id", data.parentPostId)
+        .maybeSingle();
+      if (parent && parent.author_id !== context.userId) {
+        const { assertNotBlocked } = await import("./privacy-helpers.server");
+        await assertNotBlocked(context.userId, parent.author_id);
+      }
+    }
     const { data: post, error } = await context.supabase
       .from("posts")
       .insert({
