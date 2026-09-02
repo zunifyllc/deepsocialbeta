@@ -14,12 +14,27 @@ const rangeSchema = z.enum(["7d", "30d", "all"]).default("30d");
 export const recordPostImpression = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input) => z.object({ postId: z.string().uuid() }).parse(input))
-  .handler(({ data, context }) => recordImpression(context.supabase, context.userId, data.postId));
+  .handler(async ({ data, context }) => {
+    const { data: post } = await context.supabase
+      .from("posts")
+      .select("author_id")
+      .eq("id", data.postId)
+      .maybeSingle();
+    if (post && post.author_id !== context.userId) {
+      const { isBlockedBetween } = await import("./privacy-helpers.server");
+      if (await isBlockedBetween(context.userId, post.author_id)) return { recorded: false };
+    }
+    return recordImpression(context.supabase, context.userId, data.postId);
+  });
 
 export const recordProfileVisit = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input) => z.object({ profileId: z.string().uuid() }).parse(input))
-  .handler(({ data, context }) => recordVisit(context.supabase, context.userId, data.profileId));
+  .handler(async ({ data, context }) => {
+    const { isBlockedBetween } = await import("./privacy-helpers.server");
+    if (await isBlockedBetween(context.userId, data.profileId)) return { recorded: false };
+    return recordVisit(context.supabase, context.userId, data.profileId);
+  });
 
 export const getPostAnalytics = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
