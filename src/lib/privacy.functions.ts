@@ -98,18 +98,6 @@ export const toggleBlock = createServerFn({ method: "POST" })
     return { isBlocked: true };
   });
 
-async function loadProfiles(
-  supabase: { from: (t: "profiles") => any },
-  ids: string[],
-): Promise<PrivacyUser[]> {
-  if (ids.length === 0) return [];
-  const { data } = await supabase
-    .from("profiles")
-    .select("id, username, display_name, avatar_url")
-    .in("id", ids);
-  return (data ?? []) as PrivacyUser[];
-}
-
 export const getMutedUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -118,7 +106,13 @@ export const getMutedUsers = createServerFn({ method: "GET" })
       .select("muted_user_id")
       .eq("muted_by", context.userId);
     if (error) throw error;
-    return loadProfiles(context.supabase, (data ?? []).map((r) => r.muted_user_id));
+    const ids = (data ?? []).map((r) => r.muted_user_id);
+    if (ids.length === 0) return [] as PrivacyUser[];
+    const { data: profiles } = await context.supabase
+      .from("profiles")
+      .select("id, username, display_name, avatar_url")
+      .in("id", ids);
+    return (profiles ?? []) as PrivacyUser[];
   });
 
 export const getBlockedUsers = createServerFn({ method: "GET" })
@@ -129,7 +123,13 @@ export const getBlockedUsers = createServerFn({ method: "GET" })
       .select("blocked_user_id")
       .eq("blocked_by", context.userId);
     if (error) throw error;
-    return loadProfiles(context.supabase, (data ?? []).map((r) => r.blocked_user_id));
+    const ids = (data ?? []).map((r) => r.blocked_user_id);
+    if (ids.length === 0) return [] as PrivacyUser[];
+    const { data: profiles } = await context.supabase
+      .from("profiles")
+      .select("id, username, display_name, avatar_url")
+      .in("id", ids);
+    return (profiles ?? []) as PrivacyUser[];
   });
 
 /** Mute/block state between the signed-in user and another account. */

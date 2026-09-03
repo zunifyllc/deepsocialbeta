@@ -1,5 +1,5 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Home, Search, Bell, Mail, Bookmark, List, User, Settings, Palette, Feather, Waves, ShieldCheck } from "lucide-react";
+import { Home, Search, Bell, Mail, Bookmark, List, User, Settings, Palette, Feather, Waves, ShieldCheck, ShieldOff, Clock } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
@@ -12,9 +12,11 @@ const navItems = [
   { icon: Bell, label: "Notifications", href: "/notifications" },
   { icon: Mail, label: "Messages", href: "/messages" },
   { icon: Bookmark, label: "Bookmarks", href: "/bookmarks" },
+  { icon: Clock, label: "Scheduled", href: "/scheduled-posts" },
   { icon: List, label: "Lists", href: "/lists" },
   { icon: User, label: "Profile", href: "/profile" },
   { icon: Palette, label: "Display", href: "/settings/display" },
+  { icon: ShieldOff, label: "Privacy", href: "/settings/privacy" },
   { icon: Settings, label: "Settings", href: "/settings/profile" },
 ];
 
