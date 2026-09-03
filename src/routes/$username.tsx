@@ -167,6 +167,7 @@ function ProfilePage() {
           </div>
         )}
       </div>
+      )}
     </AppShell>
   );
 }
