@@ -9,6 +9,7 @@ import { AddToListMenu } from "@/components/lists/add-to-list-menu";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { getFollowStatus } from "@/lib/follows.functions";
+import { PrivacyMenu, useRelationshipState } from "./privacy-menu";
 
 interface Profile {
   id: string;
@@ -20,6 +21,7 @@ interface Profile {
   location: string | null;
   website: string | null;
   pronouns?: string | null;
+  blockState?: "by-me" | "by-them" | null;
   created_at: string;
   is_verified?: boolean;
 }
@@ -44,6 +46,9 @@ export function ProfileHeader({
   const { user } = useAuth();
   const isOwner = user?.id === profile.id;
   const [imageError, setImageError] = useState({ banner: false, avatar: false });
+
+  const { data: privacyState } = useRelationshipState(profile.id);
+  const blocked = !!profile.blockState || !!privacyState?.isBlocked || !!privacyState?.blockedByThem;
 
   const { data: relationship } = useQuery({
     queryKey: ["follow-status", profile.id],
@@ -106,9 +111,14 @@ export function ProfileHeader({
             </>
           ) : (
             <>
-              <AddToListMenu userId={profile.id} />
-              <MessageButton userId={profile.id} />
-              <FollowButton userId={profile.id} />
+              <PrivacyMenu userId={profile.id} username={profile.username} />
+              {!blocked && (
+                <>
+                  <AddToListMenu userId={profile.id} />
+                  <MessageButton userId={profile.id} />
+                  <FollowButton userId={profile.id} />
+                </>
+              )}
             </>
           )}
         </div>
