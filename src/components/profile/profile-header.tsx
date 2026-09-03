@@ -80,7 +80,7 @@ export function ProfileHeader({
       </div>
 
       <div className="relative px-4 pb-4">
-        <div className="absolute -top-16 left-4 h-32 w-32 overflow-hidden rounded-full border-4 border-background bg-muted">
+        <div className="pointer-events-none absolute -top-16 left-4 h-32 w-32 overflow-hidden rounded-full border-4 border-background bg-muted">
           {profile.avatar_url && !imageError.avatar ? (
             <img
               src={profile.avatar_url}
@@ -95,7 +95,7 @@ export function ProfileHeader({
           )}
         </div>
 
-        <div className="mt-20 flex justify-end gap-2">
+        <div className="relative z-10 mt-20 flex flex-wrap justify-end gap-2">
           {isOwner ? (
             <>
               <Link to="/analytics/profile/$username" params={{ username: profile.username }}>
