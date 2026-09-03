@@ -12,6 +12,7 @@ import type { ProfileTab } from "@/components/profile/profile-header";
 import { useServerFn } from "@tanstack/react-start";
 import { useAuth } from "@/hooks/use-auth";
 import { recordProfileVisit } from "@/lib/analytics.functions";
+import { useRelationshipState } from "@/components/profile/privacy-menu";
 
 export const Route = createFileRoute("/$username")({
   head: () => ({
@@ -72,7 +73,10 @@ function ProfilePage() {
   const remove = useServerFn(deletePost);
   const recordVisit = useServerFn(recordProfileVisit);
 
-  const blockState = profile.blockState ?? null;
+  const { data: privacyState } = useRelationshipState(profile.id);
+  const blockState: "by-me" | "by-them" | null =
+    profile.blockState ??
+    (privacyState?.isBlocked ? "by-me" : privacyState?.blockedByThem ? "by-them" : null);
 
   useEffect(() => {
     if (!user || isOwnProfile || blockState) return;
