@@ -72,8 +72,10 @@ function ProfilePage() {
   const remove = useServerFn(deletePost);
   const recordVisit = useServerFn(recordProfileVisit);
 
+  const blockState = profile.blockState ?? null;
+
   useEffect(() => {
-    if (!user || isOwnProfile) return;
+    if (!user || isOwnProfile || blockState) return;
     recordVisit({ data: { profileId: profile.id } }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, profile.id, isOwnProfile]);
@@ -113,6 +115,20 @@ function ProfilePage() {
         onTabChange={setActiveTab}
       />
 
+      {blockState ? (
+        <div className="p-8 text-center text-muted-foreground">
+          <p className="text-xl font-bold">
+            {blockState === "by-me"
+              ? "You have blocked this account"
+              : "You are blocked from viewing this profile"}
+          </p>
+          <p className="mt-2">
+            {blockState === "by-me"
+              ? `Unblock @${profile.username} to see their profile and posts again.`
+              : `@${profile.username} has blocked you, so their posts and profile are hidden.`}
+          </p>
+        </div>
+      ) : (
       <div>
         {activeTab === "posts" && pinnedPost && (
           <PostCard

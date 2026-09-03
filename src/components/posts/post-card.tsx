@@ -14,6 +14,7 @@ import { PollCard } from "./poll-card";
 import { SaveToCollectionDialog } from "./save-to-collection-dialog";
 import { EditPostModal } from "./edit-post-modal";
 import { canEditPost } from "@/lib/post-edit-helpers";
+import { PrivacyMenuItems, BlockConfirmDialog } from "@/components/profile/privacy-menu";
 import { togglePinPost } from "@/lib/profiles.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -50,6 +51,7 @@ export function PostCard({
   const [quoteOpen, setQuoteOpen] = useState(false);
   const [collectionOpen, setCollectionOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [blockOpen, setBlockOpen] = useState(false);
   const isOwner = user?.id === post.author?.id;
   const canEdit = isOwner && canEditPost(post.created_at);
 
@@ -181,6 +183,13 @@ export function PostCard({
                         <Trash2 className="mr-2 h-4 w-4" /> Delete post
                       </DropdownMenuItem>
                     )}
+                    {!isOwner && (
+                      <PrivacyMenuItems
+                        userId={post.author.id}
+                        username={post.author.username}
+                        onBlockRequest={() => setBlockOpen(true)}
+                      />
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -249,6 +258,15 @@ export function PostCard({
       />
 
       {canEdit && <EditPostModal post={post} open={editOpen} onOpenChange={setEditOpen} />}
+
+      {!isOwner && (
+        <BlockConfirmDialog
+          userId={post.author.id}
+          username={post.author.username}
+          open={blockOpen}
+          onOpenChange={setBlockOpen}
+        />
+      )}
 
       <RepostModal
         post={post}
