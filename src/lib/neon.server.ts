@@ -9,7 +9,7 @@
 //
 // Nothing in the app depends on this yet — Supabase remains the primary
 // database, auth and storage provider.
-import { neon, neonConfig, Pool } from "@neondatabase/serverless";
+import { neon, neonConfig, Pool, type PoolClient } from "@neondatabase/serverless";
 
 // Cache connections per worker isolate so repeated requests reuse them.
 neonConfig.fetchConnectionCache = true;
@@ -73,7 +73,7 @@ export function getPool(): Pool {
 
 /** Runs `fn` inside a single transaction on a dedicated connection. */
 export async function withTransaction<T>(
-  fn: (client: Awaited<ReturnType<Pool["connect"]>>) => Promise<T>,
+  fn: (client: PoolClient) => Promise<T>,
 ): Promise<T> {
   const client = await getPool().connect();
   try {
@@ -93,7 +93,8 @@ export async function withTransaction<T>(
 export async function checkNeonConnection(): Promise<{ ok: boolean; now?: string; error?: string }> {
   try {
     const rows = (await getSql()`select now() as now`) as Array<{ now: string }>;
-    return { ok: true, now: rows[0]?.now };
+    const now = rows[0]?.now;
+    return now ? { ok: true, now } : { ok: true };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "Unknown error" };
   }
