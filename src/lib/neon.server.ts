@@ -99,3 +99,79 @@ export async function checkNeonConnection(): Promise<{ ok: boolean; now?: string
     return { ok: false, error: error instanceof Error ? error.message : "Unknown error" };
   }
 }
+
+/** Tables the Neon schema is expected to provide (Step 2 replication). */
+export const NEON_EXPECTED_TABLES = [
+  "blocked_users",
+  "bookmark_collections",
+  "bookmarks",
+  "conversations",
+  "follows",
+  "likes",
+  "list_members",
+  "lists",
+  "messages",
+  "muted_users",
+  "notification_settings",
+  "notifications",
+  "poll_options",
+  "poll_votes",
+  "polls",
+  "post_impressions",
+  "posts",
+  "profile_visits",
+  "profiles",
+  "reposts",
+  "user_roles",
+] as const;
+
+export type NeonSchemaReport = {
+  ok: boolean;
+  tables: string[];
+  missing: string[];
+  indexes: number;
+  foreignKeys: number;
+  error?: string;
+};
+
+/**
+ * Schema smoke test: confirms every replicated table exists in Neon and
+ * reports index / foreign-key totals. Read-only.
+ */
+export async function checkNeonSchema(): Promise<NeonSchemaReport> {
+  try {
+    const client = getSql();
+    const tableRows = (await client`
+      select table_name from information_schema.tables
+      where table_schema = 'public' and table_type = 'BASE TABLE'
+      order by table_name
+    `) as Array<{ table_name: string }>;
+    const tables = tableRows.map((row) => row.table_name);
+    const missing = NEON_EXPECTED_TABLES.filter((name) => !tables.includes(name));
+
+    const indexRows = (await client`
+      select count(*)::int as count from pg_indexes where schemaname = 'public'
+    `) as Array<{ count: number }>;
+    const fkRows = (await client`
+      select count(*)::int as count from pg_constraint
+      where contype = 'f' and connamespace = 'public'::regnamespace
+    `) as Array<{ count: number }>;
+
+    return {
+      ok: missing.length === 0,
+      tables,
+      missing,
+      indexes: indexRows[0]?.count ?? 0,
+      foreignKeys: fkRows[0]?.count ?? 0,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      tables: [],
+      missing: [...NEON_EXPECTED_TABLES],
+      indexes: 0,
+      foreignKeys: 0,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
