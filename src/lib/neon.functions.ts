@@ -14,8 +14,11 @@ export const checkNeonStatus = createServerFn({ method: "GET" })
     });
     if (!isAdmin) throw new Error("Forbidden");
 
-    const { hasNeonDatabase, checkNeonConnection } = await import("./neon.server");
+    const { hasNeonDatabase, checkNeonConnection, checkNeonSchema } = await import(
+      "./neon.server"
+    );
     if (!hasNeonDatabase()) return { configured: false, ok: false as boolean };
     const result = await checkNeonConnection();
-    return { configured: true, ...result };
+    const schema = await checkNeonSchema();
+    return { configured: true, ...result, schema };
   });
