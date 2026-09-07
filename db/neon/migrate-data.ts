@@ -121,7 +121,10 @@ async function copyTable(table: string, conflict: string): Promise<TableResult> 
       `insert into public.${table} (${columns.map((c) => `"${c}"`).join(", ")}) ` +
       `values (${placeholders}) on conflict ${conflict} do nothing`;
     try {
-      const inserted = (await sql.query(statement + " returning 1 as ok")) as unknown[];
+      const inserted = (await sql.query(
+        statement + " returning 1 as ok",
+        values,
+      )) as unknown[];
       if (inserted.length > 0) result.inserted += 1;
       else result.skipped += 1;
     } catch (error) {
