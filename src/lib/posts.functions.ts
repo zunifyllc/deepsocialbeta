@@ -1,8 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { createPublicClient } from "./supabase-public";
-import { fetchRepostFeedItems, mergeFeedItems, POST_WITH_AUTHOR } from "./feed-helpers";
+import { mergeFeedItems, POST_WITH_AUTHOR } from "./feed-helpers";
 import { hoursToInterval, pollInputSchema } from "./poll-helpers";
 import { canEditPost } from "./post-edit-helpers";
 import { assertFutureSchedule, requireOwnScheduledPost } from "./schedule-helpers";
@@ -55,6 +54,14 @@ const createPostSchema = z.object({
   scheduledAt: z.string().datetime().nullable().optional(),
 });
 
+/** Post reads are served from Neon; mute/block lists still come from Supabase. */
+async function readers() {
+  const [posts, privacy] = await Promise.all([
+    import("./neon/posts.server"),
+    import("./privacy-helpers.server"),
+  ]);
+  return { posts, hidden: await privacy.getViewerHiddenAuthorIds() };
+}
 
 export const getFeed = createServerFn({ method: "GET" })
   .validator((input) =>
@@ -67,49 +74,20 @@ export const getFeed = createServerFn({ method: "GET" })
       .parse(input),
   )
   .handler(async ({ data }) => {
-    const supabase = createPublicClient();
-    const { getViewerHiddenAuthorIds, excludeAuthors } = await import("./privacy-helpers.server");
-    const { filterVisiblePosts } = await import("./privacy-filters");
-    const hidden = await getViewerHiddenAuthorIds();
-    let query = excludeAuthors(supabase
-      .from("posts")
-      .select(POST_WITH_AUTHOR)
-      .eq("status", "published")
-      .is("parent_post_id", null), hidden)
-      .order("created_at", { ascending: false })
-      .limit(data.limit);
-
-    if (data.cursor) {
-      query = query.lt("created_at", data.cursor);
-    }
-
-    const { data: posts, error } = await query;
-    if (error) throw error;
-
-    const reposts = await fetchRepostFeedItems(supabase, {
-      limit: data.limit,
-      ...(data.cursor ? { cursor: data.cursor } : {}),
-    });
-
-    return filterVisiblePosts(
-      mergeFeedItems((posts ?? []) as unknown as Post[], reposts as unknown as Post[], data.limit),
-      hidden,
-    );
+    const { posts, hidden } = await readers();
+    const opts = { limit: data.limit, hidden, cursor: data.cursor };
+    const [plain, reposts] = await Promise.all([
+      posts.listFeedPosts(opts),
+      posts.listRepostFeedItems(opts),
+    ]);
+    return mergeFeedItems(plain as unknown as Post[], reposts as unknown as Post[], data.limit);
   });
 
 export const getPost = createServerFn({ method: "GET" })
   .validator((input) => z.object({ postId: z.string().uuid() }).parse(input))
   .handler(async ({ data }) => {
-    const supabase = createPublicClient();
-    const { getViewerHiddenAuthorIds } = await import("./privacy-helpers.server");
-    const hidden = await getViewerHiddenAuthorIds();
-    const { data: post, error } = await supabase
-      .from("posts")
-      .select(POST_WITH_AUTHOR)
-      .eq("id", data.postId)
-      .maybeSingle();
-    if (error) throw error;
-    const found = (post ?? null) as unknown as Post | null;
+    const { posts, hidden } = await readers();
+    const found = (await posts.getPostById(data.postId)) as unknown as Post | null;
     if (found?.author && hidden.includes(found.author.id)) return null;
     return found;
   });
@@ -117,19 +95,8 @@ export const getPost = createServerFn({ method: "GET" })
 export const getReplies = createServerFn({ method: "GET" })
   .validator((input) => z.object({ postId: z.string().uuid() }).parse(input))
   .handler(async ({ data }) => {
-    const supabase = createPublicClient();
-    const { getViewerHiddenAuthorIds, excludeAuthors } = await import("./privacy-helpers.server");
-    const hidden = await getViewerHiddenAuthorIds();
-    const { data: replies, error } = await excludeAuthors(
-      supabase
-        .from("posts")
-        .select(POST_WITH_AUTHOR)
-        .eq("status", "published")
-        .eq("parent_post_id", data.postId),
-      hidden,
-    ).order("created_at", { ascending: true });
-    if (error) throw error;
-    return (replies ?? []) as unknown as Post[];
+    const { posts, hidden } = await readers();
+    return (await posts.listReplies(data.postId, hidden)) as unknown as Post[];
   });
 
 export const getUserPosts = createServerFn({ method: "GET" })
@@ -143,37 +110,14 @@ export const getUserPosts = createServerFn({ method: "GET" })
       .parse(input),
   )
   .handler(async ({ data }) => {
-    const supabase = createPublicClient();
-    const { getViewerHiddenAuthorIds } = await import("./privacy-helpers.server");
-    const { filterVisiblePosts } = await import("./privacy-filters");
-    const hidden = await getViewerHiddenAuthorIds();
+    const { posts, hidden } = await readers();
     if (hidden.includes(data.userId)) return [] as Post[];
-    let query = supabase
-      .from("posts")
-      .select(POST_WITH_AUTHOR)
-      .eq("author_id", data.userId)
-      .eq("status", "published")
-      .is("parent_post_id", null)
-      .order("created_at", { ascending: false })
-      .limit(data.limit);
-
-    if (data.cursor) {
-      query = query.lt("created_at", data.cursor);
-    }
-
-    const { data: posts, error } = await query;
-    if (error) throw error;
-
-    const reposts = await fetchRepostFeedItems(supabase, {
-      userId: data.userId,
-      limit: data.limit,
-      ...(data.cursor ? { cursor: data.cursor } : {}),
-    });
-
-    return filterVisiblePosts(
-      mergeFeedItems((posts ?? []) as unknown as Post[], reposts as unknown as Post[], data.limit),
-      hidden,
-    );
+    const opts = { limit: data.limit, hidden, cursor: data.cursor };
+    const [plain, reposts] = await Promise.all([
+      posts.listUserPosts(data.userId, opts),
+      posts.listRepostFeedItems({ ...opts, userId: data.userId }),
+    ]);
+    return mergeFeedItems(plain as unknown as Post[], reposts as unknown as Post[], data.limit);
   });
 
 export const createPost = createServerFn({ method: "POST" })
@@ -234,6 +178,10 @@ export const createPost = createServerFn({ method: "POST" })
       created.poll = { id: poll.id };
     }
 
+    const mirror = await import("./neon/mirror.server");
+    await mirror.mirrorPost(context.supabase, created.id);
+    if (data.parentPostId) await mirror.syncPostCounters(context.supabase, data.parentPostId);
+
     return created;
   });
 
@@ -264,6 +212,10 @@ export const editPost = createServerFn({ method: "POST" })
       .select(POST_WITH_AUTHOR)
       .single();
     if (error) throw error;
+
+    const { mirrorPost } = await import("./neon/mirror.server");
+    await mirrorPost(context.supabase, data.postId);
+
     return post as unknown as Post;
   });
 
@@ -271,47 +223,46 @@ export const deletePost = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
+    const { data: existing } = await context.supabase
+      .from("posts")
+      .select("parent_post_id")
+      .eq("id", data.id)
+      .eq("author_id", context.userId)
+      .maybeSingle();
+
     const { error } = await context.supabase
       .from("posts")
       .delete()
       .eq("id", data.id)
       .eq("author_id", context.userId);
     if (error) throw error;
+
+    const mirror = await import("./neon/mirror.server");
+    await mirror.mirrorPostDelete(data.id);
+    if (existing?.parent_post_id) {
+      await mirror.syncPostCounters(context.supabase, existing.parent_post_id);
+    }
     return { success: true };
   });
 
 /**
- * Posts liked by a user. Likes are private (RLS scopes reads to the owner),
- * so this only returns rows when a user requests their own likes.
+ * Posts liked by a user. Likes are private, so this only returns rows when a
+ * user requests their own likes.
  */
 export const getUserLikedPosts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input) => z.object({ userId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     if (data.userId !== context.userId) return [] as Post[];
-    const { data: rows, error } = await context.supabase
-      .from("likes")
-      .select(`created_at, post:posts!likes_post_id_fkey(${POST_WITH_AUTHOR})`)
-      .eq("user_id", context.userId)
-      .order("created_at", { ascending: false })
-      .limit(50);
-    if (error) throw error;
-    return ((rows ?? [])
-      .map((row) => (row as unknown as { post: Post | null }).post)
-      .filter(Boolean)) as Post[];
+    const { listLikedPosts } = await import("./neon/posts.server");
+    return (await listLikedPosts(context.userId)) as unknown as Post[];
   });
 
 export const getScheduledPosts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data: posts, error } = await context.supabase
-      .from("posts")
-      .select(POST_WITH_AUTHOR)
-      .eq("author_id", context.userId)
-      .eq("status", "scheduled")
-      .order("scheduled_at", { ascending: true });
-    if (error) throw error;
-    return (posts ?? []) as unknown as Post[];
+    const { listScheduledPosts } = await import("./neon/posts.server");
+    return (await listScheduledPosts(context.userId)) as unknown as Post[];
   });
 
 export const publishNow = createServerFn({ method: "POST" })
@@ -325,6 +276,8 @@ export const publishNow = createServerFn({ method: "POST" })
       .eq("id", data.postId)
       .eq("author_id", context.userId);
     if (error) throw error;
+    const { mirrorPost } = await import("./neon/mirror.server");
+    await mirrorPost(context.supabase, data.postId);
     return { success: true };
   });
 
@@ -339,6 +292,8 @@ export const cancelScheduledPost = createServerFn({ method: "POST" })
       .eq("id", data.postId)
       .eq("author_id", context.userId);
     if (error) throw error;
+    const { mirrorPostDelete } = await import("./neon/mirror.server");
+    await mirrorPostDelete(data.postId);
     return { success: true };
   });
 
@@ -379,5 +334,9 @@ export const updateScheduledPost = createServerFn({ method: "POST" })
       .select(POST_WITH_AUTHOR)
       .single();
     if (error) throw error;
+
+    const { mirrorPost } = await import("./neon/mirror.server");
+    await mirrorPost(context.supabase, data.postId);
+
     return post as unknown as Post;
   });
