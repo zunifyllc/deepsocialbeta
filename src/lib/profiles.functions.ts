@@ -1,8 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { createPublicClient } from "./supabase-public";
-import { POST_WITH_AUTHOR } from "./feed-helpers";
 import type { Post } from "./posts.functions";
 
 export interface Profile {
@@ -40,18 +38,11 @@ const profileSchema = z.object({
   theme_mode: z.enum(["dark", "black"]).optional(),
 });
 
-
 export const getProfileByUsername = createServerFn({ method: "GET" })
   .validator((input) => z.object({ username: z.string() }).parse(input))
   .handler(async ({ data }) => {
-    const supabase = createPublicClient();
-    const { data: profile, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("username", data.username)
-      .maybeSingle();
-    if (error) throw error;
-    const found = (profile ?? null) as unknown as Profile | null;
+    const neon = await import("./neon/profiles.server");
+    const found = (await neon.getProfileByUsername(data.username)) as unknown as Profile | null;
     if (!found) return null;
 
     const { getViewerId, getBlockState } = await import("./privacy-helpers.server");
@@ -73,12 +64,17 @@ export const getProfileByUsername = createServerFn({ method: "GET" })
 export const getCurrentProfile = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data: profile, error } = await context.supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", context.userId)
-      .single();
-    if (error) throw error;
+    const [neon, mirror] = await Promise.all([
+      import("./neon/profiles.server"),
+      import("./neon/mirror.server"),
+    ]);
+    let profile = await neon.getProfileById(context.userId);
+    if (!profile) {
+      // New account created after the last copy — replicate it, then read again.
+      await mirror.mirrorProfile(context.supabase, context.userId);
+      profile = await neon.getProfileById(context.userId);
+    }
+    if (!profile) throw new Error("Profile not found");
     return profile as unknown as Profile;
   });
 
@@ -106,6 +102,10 @@ export const updateProfile = createServerFn({ method: "POST" })
       .select()
       .single();
     if (error) throw error;
+
+    const { mirrorProfile } = await import("./neon/mirror.server");
+    await mirrorProfile(context.supabase, context.userId);
+
     return profile as unknown as Profile;
   });
 
@@ -139,26 +139,17 @@ export const togglePinPost = createServerFn({ method: "POST" })
       .select()
       .single();
     if (error) throw error;
+
+    const mirror = await import("./neon/mirror.server");
+    if (nextPinned) await mirror.mirrorPost(context.supabase, nextPinned);
+    await mirror.mirrorProfile(context.supabase, context.userId);
+
     return profile as unknown as Profile;
   });
 
 export const getPinnedPost = createServerFn({ method: "GET" })
   .validator((input) => z.object({ userId: z.string().uuid() }).parse(input))
   .handler(async ({ data }) => {
-    const supabase = createPublicClient();
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("pinned_post_id")
-      .eq("id", data.userId)
-      .maybeSingle();
-    if (profileError) throw profileError;
-    if (!profile?.pinned_post_id) return null;
-
-    const { data: post, error } = await supabase
-      .from("posts")
-      .select(POST_WITH_AUTHOR)
-      .eq("id", profile.pinned_post_id)
-      .maybeSingle();
-    if (error) throw error;
-    return (post ?? null) as unknown as Post | null;
+    const { getPinnedPost: readPinned } = await import("./neon/posts.server");
+    return (await readPinned(data.userId)) as unknown as Post | null;
   });

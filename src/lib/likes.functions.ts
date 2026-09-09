@@ -16,6 +16,8 @@ export const toggleLike = createServerFn({ method: "POST" })
       await assertNotBlocked(context.userId, target.author_id);
     }
 
+    const mirror = await import("./neon/mirror.server");
+
     const { data: existing } = await context.supabase
       .from("likes")
       .select("id")
@@ -27,15 +29,24 @@ export const toggleLike = createServerFn({ method: "POST" })
       const { error } = await context.supabase.from("likes").delete().eq("id", existing.id);
       if (error) throw error;
       await context.supabase.rpc("decrement_like_count", { post_id: data.postId });
+      await mirror.mirrorRowDelete("likes", existing.id);
+      await mirror.syncPostCounters(context.supabase, data.postId);
       return { liked: false };
     }
 
-    const { error } = await context.supabase.from("likes").insert({
-      post_id: data.postId,
-      user_id: context.userId,
-    });
+    const { data: inserted, error } = await context.supabase
+      .from("likes")
+      .insert({ post_id: data.postId, user_id: context.userId })
+      .select("*")
+      .single();
     if (error) throw error;
     await context.supabase.rpc("increment_like_count", { post_id: data.postId });
+
+    await mirror.mirrorRow(context.supabase, "likes", inserted, {
+      userId: context.userId,
+      postId: data.postId,
+    });
+    await mirror.syncPostCounters(context.supabase, data.postId);
 
     // Create notification
     const { data: post } = await context.supabase.from("posts").select("author_id").eq("id", data.postId).single();
@@ -55,12 +66,6 @@ export const getLikeStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input) => z.object({ postId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { data: existing, error } = await context.supabase
-      .from("likes")
-      .select("id")
-      .eq("post_id", data.postId)
-      .eq("user_id", context.userId)
-      .maybeSingle();
-    if (error) throw error;
-    return { liked: !!existing };
+    const { isLiked } = await import("./neon/social.server");
+    return { liked: await isLiked(context.userId, data.postId) };
   });
