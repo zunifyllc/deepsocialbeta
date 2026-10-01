@@ -27,7 +27,7 @@ export const Route = createFileRoute("/_authenticated/lists/")({
   errorComponent: ({ error }) => (
     <AppShell>
       <div role="alert" className="p-8 text-center text-muted-foreground">
-        {error.message}
+        {(error as Error).message}
       </div>
     </AppShell>
   ),

@@ -35,7 +35,7 @@ export const Route = createFileRoute("/explore")({
   component: ExplorePage,
   errorComponent: ({ error }) => (
     <div role="alert" className="p-8 text-center text-muted-foreground">
-      {error.message}
+      {(error as Error).message}
     </div>
   ),
   notFoundComponent: () => <div className="p-8 text-center text-muted-foreground">Nothing here.</div>,

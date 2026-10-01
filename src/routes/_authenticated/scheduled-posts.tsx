@@ -48,7 +48,7 @@ export const Route = createFileRoute("/_authenticated/scheduled-posts")({
   errorComponent: ({ error }) => (
     <AppShell>
       <div role="alert" className="p-8 text-center text-muted-foreground">
-        {error.message}
+        {(error as Error).message}
       </div>
     </AppShell>
   ),

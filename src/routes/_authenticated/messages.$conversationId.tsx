@@ -36,7 +36,7 @@ export const Route = createFileRoute("/_authenticated/messages/$conversationId")
   errorComponent: ({ error }) => (
     <AppShell hideRightSidebar>
       <div role="alert" className="p-8 text-center text-muted-foreground">
-        {error.message}
+        {(error as Error).message}
       </div>
     </AppShell>
   ),
