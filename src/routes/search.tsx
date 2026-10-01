@@ -32,7 +32,7 @@ export const Route = createFileRoute("/search")({
   component: SearchPage,
   errorComponent: ({ error }) => (
     <AppShell>
-      <div role="alert" className="p-8 text-center text-muted-foreground">{error.message}</div>
+      <div role="alert" className="p-8 text-center text-muted-foreground">{(error as Error).message}</div>
     </AppShell>
   ),
   notFoundComponent: () => (
