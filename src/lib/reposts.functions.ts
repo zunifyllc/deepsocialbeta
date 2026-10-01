@@ -1,9 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { createPublicClient } from "./supabase-public";
-import { fetchRepostFeedItems, readRepostCount, REPOST_WITH_POST } from "./feed-helpers";
-import type { Post, PostAuthor } from "./posts.functions";
+import type { Post } from "./posts.functions";
 
 export interface RepostUser {
   id: string;
@@ -36,6 +34,9 @@ export const toggleRepost = createServerFn({ method: "POST" })
       await assertNotBlocked(context.userId, target.author_id);
     }
 
+    const mirror = await import("./neon/mirror.server");
+    const { countReposts } = await import("./neon/posts.server");
+
     const { data: existing } = await context.supabase
       .from("reposts")
       .select("id")
@@ -46,20 +47,31 @@ export const toggleRepost = createServerFn({ method: "POST" })
     if (existing) {
       const { error: delError } = await context.supabase.from("reposts").delete().eq("id", existing.id);
       if (delError) throw delError;
+      await mirror.mirrorRowDelete("reposts", existing.id);
 
       // Undo repost — unless the user is quoting, in which case we replace it.
       if (!data.quoteContent) {
-        const count = await readRepostCount(context.supabase, data.postId);
-        return { isReposted: false, repostCount: count };
+        await mirror.syncPostCounters(context.supabase, data.postId);
+        return { isReposted: false, repostCount: await countReposts(data.postId) };
       }
     }
 
-    const { error } = await context.supabase.from("reposts").insert({
-      post_id: data.postId,
-      user_id: context.userId,
-      quote_content: data.quoteContent ?? null,
-    });
+    const { data: inserted, error } = await context.supabase
+      .from("reposts")
+      .insert({
+        post_id: data.postId,
+        user_id: context.userId,
+        quote_content: data.quoteContent ?? null,
+      })
+      .select("*")
+      .single();
     if (error) throw error;
+
+    await mirror.mirrorRow(context.supabase, "reposts", inserted, {
+      userId: context.userId,
+      postId: data.postId,
+    });
+    await mirror.syncPostCounters(context.supabase, data.postId);
 
     const { data: post } = await context.supabase
       .from("posts")
@@ -75,47 +87,29 @@ export const toggleRepost = createServerFn({ method: "POST" })
       });
     }
 
-    const count = await readRepostCount(context.supabase, data.postId);
-    return { isReposted: true, repostCount: count };
+    return { isReposted: true, repostCount: await countReposts(data.postId) };
   });
 
 export const getRepostStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input) => z.object({ postId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { data: existing, error } = await context.supabase
-      .from("reposts")
-      .select("id")
-      .eq("post_id", data.postId)
-      .eq("user_id", context.userId)
-      .maybeSingle();
-    if (error) throw error;
-    const count = await readRepostCount(context.supabase, data.postId);
-    return { isReposted: !!existing, repostCount: count };
+    const [{ isReposted }, { countReposts }] = await Promise.all([
+      import("./neon/social.server"),
+      import("./neon/posts.server"),
+    ]);
+    const [reposted, count] = await Promise.all([
+      isReposted(context.userId, data.postId),
+      countReposts(data.postId),
+    ]);
+    return { isReposted: reposted, repostCount: count };
   });
 
 export const getRepostsByPost = createServerFn({ method: "GET" })
   .validator((input) => z.object({ postId: z.string().uuid() }).parse(input))
   .handler(async ({ data }) => {
-    const supabase = createPublicClient();
-    const { data: rows, error } = await supabase
-      .from("reposts")
-      .select(REPOST_WITH_POST)
-      .eq("post_id", data.postId)
-      .order("created_at", { ascending: false });
-    if (error) throw error;
-
-    return ((rows ?? []) as unknown as Array<{
-      created_at: string;
-      quote_content: string | null;
-      user: PostAuthor | null;
-    }>)
-      .filter((row) => row.user)
-      .map((row) => ({
-        ...(row.user as PostAuthor),
-        quote_content: row.quote_content,
-        created_at: row.created_at,
-      })) as RepostUser[];
+    const { listRepostersByPost } = await import("./neon/social.server");
+    return (await listRepostersByPost(data.postId)) as unknown as RepostUser[];
   });
 
 export const getUserReposts = createServerFn({ method: "GET" })
@@ -129,11 +123,16 @@ export const getUserReposts = createServerFn({ method: "GET" })
       .parse(input),
   )
   .handler(async ({ data }) => {
-    const supabase = createPublicClient();
-    const items = await fetchRepostFeedItems(supabase, {
+    const [{ getViewerHiddenAuthorIds }, { listRepostFeedItems }] = await Promise.all([
+      import("./privacy-helpers.server"),
+      import("./neon/posts.server"),
+    ]);
+    const hidden = await getViewerHiddenAuthorIds();
+    const items = await listRepostFeedItems({
       userId: data.userId,
       limit: data.limit,
-      ...(data.cursor ? { cursor: data.cursor } : {}),
+      hidden,
+      cursor: data.cursor,
     });
     return items as unknown as Post[];
   });
