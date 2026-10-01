@@ -64,6 +64,14 @@ export const getFollowCounts = createServerFn({ method: "GET" })
     return readCounts(data.userId);
   });
 
+export interface SuggestedUser {
+  id: string;
+  username: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  bio: string | null;
+}
+
 export const getSuggestedUsers = createServerFn({ method: "GET" })
   .validator((input) => z.object({ limit: z.number().min(1).max(20).default(5) }).parse(input))
   .handler(async ({ data }) => {
@@ -72,5 +80,6 @@ export const getSuggestedUsers = createServerFn({ method: "GET" })
       import("./neon/social.server"),
     ]);
     const hidden = await getViewerHiddenAuthorIds();
-    return listSuggestedUsers(data.limit, hidden);
+    const rows = await listSuggestedUsers(data.limit, hidden);
+    return rows as unknown as SuggestedUser[];
   });
