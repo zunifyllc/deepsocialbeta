@@ -1,13 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { POST_WITH_AUTHOR } from "./feed-helpers";
 import type { Post } from "./posts.functions";
 
 export const toggleBookmark = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input) => z.object({ postId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
+    const mirror = await import("./neon/mirror.server");
+
     const { data: existing, error: readError } = await context.supabase
       .from("bookmarks")
       .select("id")
@@ -19,13 +20,20 @@ export const toggleBookmark = createServerFn({ method: "POST" })
     if (existing) {
       const { error } = await context.supabase.from("bookmarks").delete().eq("id", existing.id);
       if (error) throw error;
+      await mirror.mirrorRowDelete("bookmarks", existing.id);
       return { isBookmarked: false };
     }
 
-    const { error } = await context.supabase
+    const { data: inserted, error } = await context.supabase
       .from("bookmarks")
-      .insert({ post_id: data.postId, user_id: context.userId });
+      .insert({ post_id: data.postId, user_id: context.userId })
+      .select("*")
+      .single();
     if (error) throw error;
+    await mirror.mirrorRow(context.supabase, "bookmarks", inserted, {
+      userId: context.userId,
+      postId: data.postId,
+    });
     return { isBookmarked: true };
   });
 
@@ -33,13 +41,8 @@ export const getBookmarkStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input) => z.object({ postId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { data: existing, error } = await context.supabase
-      .from("bookmarks")
-      .select("id, collection_id")
-      .eq("post_id", data.postId)
-      .eq("user_id", context.userId)
-      .maybeSingle();
-    if (error) throw error;
+    const { getBookmark } = await import("./neon/social.server");
+    const existing = await getBookmark(context.userId, data.postId);
     return {
       isBookmarked: !!existing,
       bookmarkId: existing?.id ?? null,
@@ -61,34 +64,14 @@ export const getBookmarkedPosts = createServerFn({ method: "GET" })
       .parse(input ?? {}),
   )
   .handler(async ({ data, context }) => {
-    let query = context.supabase
-      .from("bookmarks")
-      .select(`id, created_at, collection_id, post:posts!bookmarks_post_id_fkey(${POST_WITH_AUTHOR})`)
-      .eq("user_id", context.userId)
-      .order("created_at", { ascending: false })
-      .limit(data.limit);
-
-    if (data.scope === "unsorted") query = query.is("collection_id", null);
-    if (data.scope === "collection" && data.collectionId) query = query.eq("collection_id", data.collectionId);
-    if (data.cursor) query = query.lt("created_at", data.cursor);
-
-    const { data: rows, error } = await query;
-    if (error) throw error;
-
-    return ((rows ?? []) as unknown as Array<{
-      id: string;
-      created_at: string;
-      collection_id: string | null;
-      post: Record<string, unknown> | null;
-    }>)
-      .filter((row) => row.post)
-      .map((row) => ({
-        ...(row.post as Record<string, unknown>),
-        feedKey: `bookmark-${row.id}`,
-        bookmarked_at: row.created_at,
-        bookmarkId: row.id,
-        collectionId: row.collection_id,
-      })) as unknown as Post[];
+    const { listBookmarkedPosts } = await import("./neon/social.server");
+    const rows = await listBookmarkedPosts(context.userId, {
+      limit: data.limit,
+      cursor: data.cursor,
+      scope: data.scope,
+      collectionId: data.collectionId ?? null,
+    });
+    return rows as unknown as Post[];
   });
 
 export interface BookmarkCollection {
@@ -105,45 +88,35 @@ export const createCollection = createServerFn({ method: "POST" })
     const { data: collection, error } = await context.supabase
       .from("bookmark_collections")
       .insert({ user_id: context.userId, name: data.name })
-      .select("id, name, created_at")
+      .select("*")
       .single();
     if (error) {
       if (error.code === "23505" || error.code === "23000") throw new Error("You already have a collection with that name");
       throw error;
     }
-    return { ...collection, bookmarkCount: 0 } as BookmarkCollection;
+
+    const { mirrorRow } = await import("./neon/mirror.server");
+    await mirrorRow(context.supabase, "bookmark_collections", collection, {
+      userId: context.userId,
+    });
+
+    return {
+      id: collection.id,
+      name: collection.name,
+      created_at: collection.created_at,
+      bookmarkCount: 0,
+    } as BookmarkCollection;
   });
 
 export const getMyCollections = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data: collections, error } = await context.supabase
-      .from("bookmark_collections")
-      .select("id, name, created_at")
-      .eq("user_id", context.userId)
-      .order("created_at", { ascending: true });
-    if (error) throw error;
-
-    const { data: rows, error: countError } = await context.supabase
-      .from("bookmarks")
-      .select("collection_id")
-      .eq("user_id", context.userId);
-    if (countError) throw countError;
-
-    const counts = new Map<string, number>();
-    let unsorted = 0;
-    for (const row of rows ?? []) {
-      if (row.collection_id) counts.set(row.collection_id, (counts.get(row.collection_id) ?? 0) + 1);
-      else unsorted += 1;
-    }
-
+    const { listCollections } = await import("./neon/social.server");
+    const result = await listCollections(context.userId);
     return {
-      collections: (collections ?? []).map((c) => ({
-        ...c,
-        bookmarkCount: counts.get(c.id) ?? 0,
-      })) as BookmarkCollection[],
-      totalCount: (rows ?? []).length,
-      unsortedCount: unsorted,
+      collections: result.collections as BookmarkCollection[],
+      totalCount: result.totalCount,
+      unsortedCount: result.unsortedCount,
     };
   });
 
@@ -158,6 +131,8 @@ export const deleteCollection = createServerFn({ method: "POST" })
       .eq("user_id", context.userId);
     if (error) throw error;
     // bookmarks.collection_id is ON DELETE SET NULL, so bookmarks revert to unsorted.
+    const { mirrorRowDelete } = await import("./neon/mirror.server");
+    await mirrorRowDelete("bookmark_collections", data.collectionId);
     return { deleted: true };
   });
 
@@ -189,6 +164,10 @@ export const moveBookmark = createServerFn({ method: "POST" })
       .eq("id", data.bookmarkId)
       .eq("user_id", context.userId);
     if (error) throw error;
+
+    const { mirrorBookmarkCollection } = await import("./neon/mirror.server");
+    await mirrorBookmarkCollection(data.bookmarkId, context.userId, data.collectionId);
+
     return { collectionId: data.collectionId };
   });
 
@@ -205,29 +184,12 @@ export const getBookmarksByCollection = createServerFn({ method: "GET" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    let query = context.supabase
-      .from("bookmarks")
-      .select(`id, created_at, collection_id, post:posts!bookmarks_post_id_fkey(${POST_WITH_AUTHOR})`)
-      .eq("user_id", context.userId)
-      .eq("collection_id", data.collectionId)
-      .order("created_at", { ascending: false })
-      .limit(data.limit);
-    if (data.cursor) query = query.lt("created_at", data.cursor);
-
-    const { data: rows, error } = await query;
-    if (error) throw error;
-
-    return ((rows ?? []) as unknown as Array<{
-      id: string;
-      created_at: string;
-      collection_id: string | null;
-      post: Record<string, unknown> | null;
-    }>)
-      .filter((row) => row.post)
-      .map((row) => ({
-        ...(row.post as Record<string, unknown>),
-        feedKey: `bookmark-${row.id}`,
-        bookmarkId: row.id,
-        collectionId: row.collection_id,
-      })) as unknown as Post[];
+    const { listBookmarkedPosts } = await import("./neon/social.server");
+    const rows = await listBookmarkedPosts(context.userId, {
+      limit: data.limit,
+      cursor: data.cursor,
+      scope: "collection",
+      collectionId: data.collectionId,
+    });
+    return rows as unknown as Post[];
   });
