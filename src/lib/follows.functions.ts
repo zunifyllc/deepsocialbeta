@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { createPublicClient } from "./supabase-public";
 
 export const toggleFollow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -14,6 +13,8 @@ export const toggleFollow = createServerFn({ method: "POST" })
     const { assertNotBlocked } = await import("./privacy-helpers.server");
     await assertNotBlocked(context.userId, data.followingId);
 
+    const mirror = await import("./neon/mirror.server");
+
     const { data: existing } = await context.supabase
       .from("follows")
       .select("id")
@@ -24,14 +25,19 @@ export const toggleFollow = createServerFn({ method: "POST" })
     if (existing) {
       const { error } = await context.supabase.from("follows").delete().eq("id", existing.id);
       if (error) throw error;
+      await mirror.mirrorRowDelete("follows", existing.id);
       return { following: false };
     }
 
-    const { error } = await context.supabase.from("follows").insert({
-      follower_id: context.userId,
-      following_id: data.followingId,
-    });
+    const { data: inserted, error } = await context.supabase
+      .from("follows")
+      .insert({ follower_id: context.userId, following_id: data.followingId })
+      .select("*")
+      .single();
     if (error) throw error;
+
+    await mirror.mirrorProfile(context.supabase, data.followingId);
+    await mirror.mirrorRow(context.supabase, "follows", inserted, { userId: context.userId });
 
     // Create notification
     await context.supabase.from("notifications").insert({
@@ -47,49 +53,24 @@ export const getFollowStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input) => z.object({ followingId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { data: existing, error } = await context.supabase
-      .from("follows")
-      .select("id")
-      .eq("follower_id", context.userId)
-      .eq("following_id", data.followingId)
-      .maybeSingle();
-    if (error) throw error;
-
-    const { data: reverse, error: reverseError } = await context.supabase
-      .from("follows")
-      .select("id")
-      .eq("follower_id", data.followingId)
-      .eq("following_id", context.userId)
-      .maybeSingle();
-    if (reverseError) throw reverseError;
-
-    return { following: !!existing, followedBy: !!reverse };
+    const { getFollowState } = await import("./neon/social.server");
+    return getFollowState(context.userId, data.followingId);
   });
 
 export const getFollowCounts = createServerFn({ method: "GET" })
   .validator((input) => z.object({ userId: z.string().uuid() }).parse(input))
   .handler(async ({ data }) => {
-    const supabase = createPublicClient();
-    const { data: counts, error } = await supabase.rpc("get_follow_counts", { user_uuid: data.userId });
-    if (error) throw error;
-    const result = Array.isArray(counts) ? counts[0] : counts;
-    return {
-      following: result?.following_count ?? 0,
-      followers: result?.followers_count ?? 0,
-    };
+    const { getFollowCounts: readCounts } = await import("./neon/social.server");
+    return readCounts(data.userId);
   });
 
 export const getSuggestedUsers = createServerFn({ method: "GET" })
   .validator((input) => z.object({ limit: z.number().min(1).max(20).default(5) }).parse(input))
   .handler(async ({ data }) => {
-    const supabase = createPublicClient();
-    const { getViewerHiddenAuthorIds, excludeAuthors } = await import("./privacy-helpers.server");
+    const [{ getViewerHiddenAuthorIds }, { listSuggestedUsers }] = await Promise.all([
+      import("./privacy-helpers.server"),
+      import("./neon/social.server"),
+    ]);
     const hidden = await getViewerHiddenAuthorIds();
-    const { data: users, error } = await excludeAuthors(
-      supabase.from("profiles").select("id, username, display_name, avatar_url, bio"),
-      hidden,
-      "id",
-    ).limit(data.limit);
-    if (error) throw error;
-    return users ?? [];
+    return listSuggestedUsers(data.limit, hidden);
   });
