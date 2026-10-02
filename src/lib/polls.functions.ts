@@ -103,6 +103,7 @@ export const votePoll = createServerFn({ method: "POST" })
           type: "poll_vote",
           post_id: poll.post_id,
         });
+      await (await import("./neon/mirror.server")).resyncScope("notifications", "user_id", post.author_id);
       }
     }
 

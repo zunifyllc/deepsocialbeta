@@ -85,6 +85,7 @@ export const toggleRepost = createServerFn({ method: "POST" })
         type: "repost",
         post_id: data.postId,
       });
+      await (await import("./neon/mirror.server")).resyncScope("notifications", "user_id", post.author_id);
     }
 
     return { isReposted: true, repostCount: await countReposts(data.postId) };

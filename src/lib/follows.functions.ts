@@ -45,6 +45,7 @@ export const toggleFollow = createServerFn({ method: "POST" })
       actor_id: context.userId,
       type: "follow",
     });
+      await (await import("./neon/mirror.server")).resyncScope("notifications", "user_id", data.followingId);
 
     return { following: true };
   });

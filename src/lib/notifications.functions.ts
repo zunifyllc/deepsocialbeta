@@ -48,19 +48,10 @@ const SELECT = `
 export const getNotifications = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { getHiddenAuthorIds, excludeAuthors } = await import("./privacy-helpers.server");
+    const { getHiddenAuthorIds } = await import("./privacy-helpers.server");
+    const { listNotifications } = await import("./neon/features.server");
     const hidden = await getHiddenAuthorIds(context.userId);
-    const { data: notifications, error } = await excludeAuthors(
-      context.supabase
-        .from("notifications")
-        .select(SELECT)
-        .eq("user_id", context.userId),
-      hidden,
-      "actor_id",
-    )
-      .order("created_at", { ascending: false })
-      .limit(50);
-    if (error) throw error;
+    const notifications = await listNotifications(context.userId, hidden, { limit: 50 });
     return (notifications ?? []) as unknown as Notification[];
   });
 
@@ -78,20 +69,14 @@ export const getGroupedNotifications = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }) => {
     const from = data.page * PAGE_ROWS;
-    const { getHiddenAuthorIds, excludeAuthors } = await import("./privacy-helpers.server");
+    const { getHiddenAuthorIds } = await import("./privacy-helpers.server");
+    const neon = await import("./neon/features.server");
     const hidden = await getHiddenAuthorIds(context.userId);
-    let query = excludeAuthors(
-      context.supabase.from("notifications").select(SELECT).eq("user_id", context.userId),
-      hidden,
-      "actor_id",
-    )
-      .order("created_at", { ascending: false })
-      .range(from, from + PAGE_ROWS);
-
-    if (data.typeFilter !== "all") query = query.eq("type", data.typeFilter);
-
-    const { data: rows, error } = await query;
-    if (error) throw error;
+    const rows = await neon.listNotifications(context.userId, hidden, {
+      limit: PAGE_ROWS + 1,
+      offset: from,
+      type: data.typeFilter === "all" ? null : data.typeFilter,
+    });
 
     const list = (rows ?? []) as unknown as RawNotification[];
     const hasMore = list.length > PAGE_ROWS;
@@ -101,15 +86,8 @@ export const getGroupedNotifications = createServerFn({ method: "GET" })
     const followActorIds = [
       ...new Set(items.filter((g) => g.type === "follow").flatMap((g) => g.actors.map((a) => a.id))),
     ];
-    let followingIds: string[] = [];
-    if (followActorIds.length > 0) {
-      const { data: follows } = await context.supabase
-        .from("follows")
-        .select("following_id")
-        .eq("follower_id", context.userId)
-        .in("following_id", followActorIds);
-      followingIds = (follows ?? []).map((f) => f.following_id);
-    }
+    const followingIds =
+      followActorIds.length > 0 ? await neon.listFollowingAmong(context.userId, followActorIds) : [];
 
     return { items, hasMore, followingIds };
   });
@@ -128,6 +106,8 @@ export const markNotificationRead = createServerFn({ method: "POST" })
       .in("id", data.notificationIds)
       .eq("user_id", context.userId);
     if (error) throw error;
+    const { resyncScope } = await import("./neon/mirror.server");
+    await resyncScope("notifications", "user_id", context.userId);
     return { success: true };
   });
 
@@ -140,19 +120,17 @@ export const markAllNotificationsRead = createServerFn({ method: "POST" })
       .eq("user_id", context.userId)
       .is("read_at", null);
     if (error) throw error;
+    const { resyncScope } = await import("./neon/mirror.server");
+    await resyncScope("notifications", "user_id", context.userId);
     return { success: true };
   });
 
 export const getNotificationSettings = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data: existing, error } = await context.supabase
-      .from("notification_settings")
-      .select("user_id, email_likes, email_replies, email_follows, email_reposts")
-      .eq("user_id", context.userId)
-      .maybeSingle();
-    if (error) throw error;
-    if (existing) return existing as NotificationSettings;
+    const { getNotificationSettingsRow } = await import("./neon/features.server");
+    const existing = await getNotificationSettingsRow(context.userId);
+    if (existing) return existing as unknown as NotificationSettings;
 
     const { data: created, error: insertError } = await context.supabase
       .from("notification_settings")
@@ -160,6 +138,8 @@ export const getNotificationSettings = createServerFn({ method: "GET" })
       .select("user_id, email_likes, email_replies, email_follows, email_reposts")
       .single();
     if (insertError) throw insertError;
+    const { resyncScope } = await import("./neon/mirror.server");
+    await resyncScope("notification_settings", "user_id", context.userId);
     return created as NotificationSettings;
   });
 
@@ -191,6 +171,8 @@ export const updateNotificationSettings = createServerFn({ method: "POST" })
       .select("user_id, email_likes, email_replies, email_follows, email_reposts")
       .single();
     if (error) throw error;
+    const { resyncScope } = await import("./neon/mirror.server");
+    await resyncScope("notification_settings", "user_id", context.userId);
     return updated as NotificationSettings;
   });
 

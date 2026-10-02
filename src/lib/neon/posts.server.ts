@@ -2,7 +2,7 @@
 // already consumes (see `Post` in src/lib/posts.functions.ts).
 import { q, one, type Row } from "./core.server";
 
-const POST_COLUMNS = `
+export const POST_COLUMNS = `
   p.id,
   p.content,
   p.parent_post_id,
@@ -20,7 +20,7 @@ const POST_COLUMNS = `
   (select jsonb_build_object('id', pl.id) from polls pl where pl.post_id = p.id limit 1) as poll
 `;
 
-const FROM_POSTS = `from posts p left join profiles a on a.id = p.author_id`;
+export const FROM_POSTS = `from posts p left join profiles a on a.id = p.author_id`;
 
 /** `author_id <> all(hidden)` guard that is a no-op for an empty list. */
 const NOT_HIDDEN = `(coalesce(cardinality($1::uuid[]), 0) = 0 or p.author_id <> all($1::uuid[]))`;
