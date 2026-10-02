@@ -1,14 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { createPublicClient } from "./supabase-public";
-import { POST_WITH_AUTHOR } from "./feed-helpers";
 import type { Post } from "./posts.functions";
 import type { Profile } from "./profiles.functions";
-
-/** Escapes ILIKE wildcards so user input is matched literally. */
-function escapeLike(value: string) {
-  return value.replace(/[\\%_]/g, (m) => `\\${m}`);
-}
 
 const searchSchema = z.object({
   query: z.string().max(100).default(""),
@@ -29,34 +22,13 @@ export const searchAll = createServerFn({ method: "GET" })
     const term = data.query.trim();
     if (!term) return { users: [], posts: [] };
 
-    const pattern = `%${escapeLike(term)}%`;
-    const supabase = createPublicClient();
-    const { getViewerHiddenAuthorIds, excludeAuthors } = await import("./privacy-helpers.server");
+    const { getViewerHiddenAuthorIds } = await import("./privacy-helpers.server");
+    const { searchUsers, searchPosts } = await import("./neon/features.server");
     const hidden = await getViewerHiddenAuthorIds();
-
-    const usersQuery = excludeAuthors(supabase
-      .from("profiles")
-      .select("*"), hidden, "id")
-      .or(`username.ilike.${pattern},display_name.ilike.${pattern}`)
-      .limit(data.userLimit);
-
-    let postsQuery = excludeAuthors(supabase
-      .from("posts")
-      .select(POST_WITH_AUTHOR)
-      .ilike("content", pattern), hidden)
-      .range(data.postOffset, data.postOffset + data.postLimit - 1);
-
-    postsQuery =
-      data.sort === "latest"
-        ? postsQuery.order("created_at", { ascending: false })
-        : postsQuery.order("like_count", { ascending: false }).order("created_at", { ascending: false });
-
-    const [{ data: users, error: usersError }, { data: posts, error: postsError }] = await Promise.all([
-      usersQuery,
-      postsQuery,
+    const [users, posts] = await Promise.all([
+      searchUsers(term, hidden, data.userLimit),
+      searchPosts(term, hidden, data.sort, data.postLimit, data.postOffset),
     ]);
-    if (usersError) throw usersError;
-    if (postsError) throw postsError;
 
     return {
       users: (users ?? []) as unknown as Profile[],

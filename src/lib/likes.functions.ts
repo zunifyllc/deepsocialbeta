@@ -57,6 +57,7 @@ export const toggleLike = createServerFn({ method: "POST" })
         type: "like",
         post_id: data.postId,
       });
+      await (await import("./neon/mirror.server")).resyncScope("notifications", "user_id", post.author_id);
     }
 
     return { liked: true };
