@@ -106,3 +106,59 @@ export async function mirrorBookmarkCollection(
     );
   });
 }
+
+const PROFILE_REFS = [
+  "user_id", "actor_id", "sender_id", "creator_id", "muted_by", "muted_user_id",
+  "blocked_by", "blocked_user_id", "visitor_id", "profile_id", "follower_id", "following_id",
+];
+
+/**
+ * Replaces every Neon row in `table` where `column = value` with the current
+ * Supabase rows (read with elevated access so other users' rows are included).
+ * Copies referenced profiles/posts first so foreign keys hold. Best-effort.
+ */
+export async function resyncScope(table: MirrorTable, column: string, value: string) {
+  await safeMirror(`resync-${table}`, async () => {
+    if (!/^[a-z_]+$/.test(column)) throw new Error("bad column");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = supabaseAdmin as unknown as Client;
+    const { data, error } = await (admin.from(table) as unknown as {
+      select: (c: string) => { eq: (c: string, v: string) => Promise<{ data: Row[] | null; error: unknown }> };
+    })
+      .select("*")
+      .eq(column, value);
+    if (error) throw error;
+    const rows = data ?? [];
+    for (const row of rows) {
+      for (const ref of PROFILE_REFS) {
+        if (typeof row[ref] === "string") await ensureProfile(admin, row[ref] as string);
+      }
+      if (typeof row.post_id === "string") await ensurePost(admin, row.post_id);
+    }
+    await q(`delete from ${table} where ${column} = $1::uuid`, [value]);
+    const conflict = table === "notification_settings" ? "user_id" : "id";
+    for (const row of rows) await upsert(table, row, conflict);
+  });
+}
+
+/** Copies a post's poll and its options. */
+export async function mirrorPollForPost(postId: string) {
+  await resyncScope("polls", "post_id", postId);
+  await safeMirror("poll-options", async () => {
+    const polls = await q<{ id: string }>(`select id from polls where post_id = $1::uuid`, [postId]);
+    for (const poll of polls) await resyncScope("poll_options", "poll_id", poll.id);
+  });
+}
+
+/** Recomputes like/repost counters in Neon for posts by the given authors. */
+export async function recountForAuthors(authorIds: string[]) {
+  await safeMirror("recount", async () => {
+    await q(
+      `update posts set
+         like_count = (select count(*) from likes l where l.post_id = posts.id),
+         repost_count = (select count(*) from reposts r where r.post_id = posts.id)
+       where author_id = any($1::uuid[])`,
+      [authorIds],
+    );
+  });
+}

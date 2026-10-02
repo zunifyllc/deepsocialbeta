@@ -42,6 +42,19 @@ export const MIRROR_TABLES = [
   "reposts",
   "bookmarks",
   "bookmark_collections",
+  "notifications",
+  "notification_settings",
+  "conversations",
+  "messages",
+  "polls",
+  "poll_options",
+  "poll_votes",
+  "lists",
+  "list_members",
+  "post_impressions",
+  "profile_visits",
+  "muted_users",
+  "blocked_users",
 ] as const;
 export type MirrorTable = (typeof MIRROR_TABLES)[number];
 
