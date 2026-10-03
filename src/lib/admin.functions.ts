@@ -1,12 +1,15 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { isAdmin, listUsers, setVerified } from "./admin-helpers";
+import { setVerified } from "./admin-helpers";
 export type { AdminUserRow } from "./admin-helpers";
 
 export const getMyAdminStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => ({ isAdmin: await isAdmin(context.supabase, context.userId) }));
+  .handler(async ({ context }) => {
+    const { hasAdminRole } = await import("./neon/features.server");
+    return { isAdmin: await hasAdminRole(context.userId) };
+  });
 
 export const getAllUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -19,20 +22,26 @@ export const getAllUsers = createServerFn({ method: "GET" })
       })
       .parse(input ?? {}),
   )
-  .handler(({ data, context }) =>
-    listUsers(context.supabase, context.userId, {
-      search: data.search,
-      page: data.page,
-      pageSize: data.pageSize,
-    }),
-  );
+  .handler(async ({ data, context }) => {
+    const { hasAdminRole, listUsersNeon } = await import("./neon/features.server");
+    if (!(await hasAdminRole(context.userId))) throw new Error("Admins only");
+    return (await listUsersNeon(data)) as unknown as import("./admin-helpers").AdminUserRow[];
+  });
 
 export const verifyUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input) => z.object({ userId: z.string().uuid() }).parse(input))
-  .handler(({ data, context }) => setVerified(context.supabase, context.userId, data.userId, true));
+  .handler(async ({ data, context }) => {
+    const row = await setVerified(context.supabase, context.userId, data.userId, true);
+    await (await import("./neon/mirror.server")).mirrorProfile(context.supabase, data.userId);
+    return row;
+  });
 
 export const unverifyUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input) => z.object({ userId: z.string().uuid() }).parse(input))
-  .handler(({ data, context }) => setVerified(context.supabase, context.userId, data.userId, false));
+  .handler(async ({ data, context }) => {
+    const row = await setVerified(context.supabase, context.userId, data.userId, false);
+    await (await import("./neon/mirror.server")).mirrorProfile(context.supabase, data.userId);
+    return row;
+  });

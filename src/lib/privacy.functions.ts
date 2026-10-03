@@ -27,6 +27,7 @@ export const toggleMute = createServerFn({ method: "POST" })
     if (existing) {
       const { error } = await context.supabase.from("muted_users").delete().eq("id", existing.id);
       if (error) throw error;
+      await (await import("./neon/mirror.server")).resyncScope("muted_users", "muted_by", context.userId);
       return { isMuted: false };
     }
 
@@ -34,6 +35,7 @@ export const toggleMute = createServerFn({ method: "POST" })
       .from("muted_users")
       .insert({ muted_by: context.userId, muted_user_id: data.targetUserId });
     if (error) throw error;
+    await (await import("./neon/mirror.server")).resyncScope("muted_users", "muted_by", context.userId);
     return { isMuted: true };
   });
 
@@ -55,6 +57,7 @@ export const toggleBlock = createServerFn({ method: "POST" })
     if (existing) {
       const { error } = await context.supabase.from("blocked_users").delete().eq("id", existing.id);
       if (error) throw error;
+      await (await import("./neon/mirror.server")).resyncScope("blocked_users", "blocked_by", me);
       return { isBlocked: false };
     }
 
@@ -95,41 +98,32 @@ export const toggleBlock = createServerFn({ method: "POST" })
         `and(user_id.eq.${me},actor_id.eq.${them}),and(user_id.eq.${them},actor_id.eq.${me})`,
       );
 
+    const mirror = await import("./neon/mirror.server");
+    await mirror.resyncScope("blocked_users", "blocked_by", me);
+    for (const id of [me, them]) {
+      await mirror.resyncScope("follows", "follower_id", id);
+      await mirror.resyncScope("likes", "user_id", id);
+      await mirror.resyncScope("reposts", "user_id", id);
+      await mirror.resyncScope("notifications", "user_id", id);
+    }
+    await mirror.recountForAuthors([me, them]);
     return { isBlocked: true };
   });
 
 export const getMutedUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
-      .from("muted_users")
-      .select("muted_user_id")
-      .eq("muted_by", context.userId);
-    if (error) throw error;
-    const ids = (data ?? []).map((r) => r.muted_user_id);
-    if (ids.length === 0) return [] as PrivacyUser[];
-    const { data: profiles } = await context.supabase
-      .from("profiles")
-      .select("id, username, display_name, avatar_url")
-      .in("id", ids);
-    return (profiles ?? []) as PrivacyUser[];
+    const neon = await import("./neon/features.server");
+    const ids = await neon.idsWhere("muted_users", "muted_user_id", "muted_by", context.userId);
+    return (await neon.privacyProfiles(ids)) as unknown as PrivacyUser[];
   });
 
 export const getBlockedUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
-      .from("blocked_users")
-      .select("blocked_user_id")
-      .eq("blocked_by", context.userId);
-    if (error) throw error;
-    const ids = (data ?? []).map((r) => r.blocked_user_id);
-    if (ids.length === 0) return [] as PrivacyUser[];
-    const { data: profiles } = await context.supabase
-      .from("profiles")
-      .select("id, username, display_name, avatar_url")
-      .in("id", ids);
-    return (profiles ?? []) as PrivacyUser[];
+    const neon = await import("./neon/features.server");
+    const ids = await neon.idsWhere("blocked_users", "blocked_user_id", "blocked_by", context.userId);
+    return (await neon.privacyProfiles(ids)) as unknown as PrivacyUser[];
   });
 
 /** Mute/block state between the signed-in user and another account. */
@@ -140,27 +134,14 @@ export const getRelationshipState = createServerFn({ method: "GET" })
     if (data.targetUserId === context.userId) {
       return { isMuted: false, isBlocked: false, blockedByThem: false };
     }
-    const [{ data: mute }, { data: block }] = await Promise.all([
-      context.supabase
-        .from("muted_users")
-        .select("id")
-        .eq("muted_by", context.userId)
-        .eq("muted_user_id", data.targetUserId)
-        .maybeSingle(),
-      context.supabase
-        .from("blocked_users")
-        .select("id")
-        .eq("blocked_by", context.userId)
-        .eq("blocked_user_id", data.targetUserId)
-        .maybeSingle(),
+    const neon = await import("./neon/features.server");
+    const [isMuted, rows] = await Promise.all([
+      neon.isMutedBy(context.userId, data.targetUserId),
+      neon.blockRowsBetween(context.userId, data.targetUserId),
     ]);
-
-    const { getBlockState } = await import("./privacy-helpers.server");
-    const state = await getBlockState(context.userId, data.targetUserId);
-
     return {
-      isMuted: !!mute,
-      isBlocked: !!block,
-      blockedByThem: state === "by-them",
+      isMuted,
+      isBlocked: rows.some((r) => r.blocked_by === context.userId),
+      blockedByThem: rows.some((r) => r.blocked_by === data.targetUserId),
     };
   });

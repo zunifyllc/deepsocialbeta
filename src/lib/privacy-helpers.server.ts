@@ -1,5 +1,5 @@
 import { getRequestHeader } from "@tanstack/react-start/server";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { idsWhere, blockRowsBetween } from "./neon/features.server";
 import { createPublicClient } from "./supabase-public";
 
 /**
@@ -26,31 +26,13 @@ export async function getViewerId(): Promise<string | null> {
 }
 
 /** Users the given user muted (one-way, silent). */
-export async function getMutedIds(userId: string): Promise<string[]> {
-  const { data } = await supabaseAdmin
-    .from("muted_users")
-    .select("muted_user_id")
-    .eq("muted_by", userId);
-  return (data ?? []).map((row) => row.muted_user_id);
-}
+export const getMutedIds = (userId: string) => idsWhere("muted_users", "muted_user_id", "muted_by", userId);
 
 /** Users the given user blocked. */
-export async function getBlockedIds(userId: string): Promise<string[]> {
-  const { data } = await supabaseAdmin
-    .from("blocked_users")
-    .select("blocked_user_id")
-    .eq("blocked_by", userId);
-  return (data ?? []).map((row) => row.blocked_user_id);
-}
+export const getBlockedIds = (userId: string) => idsWhere("blocked_users", "blocked_user_id", "blocked_by", userId);
 
 /** Users who blocked the given user (hard block is mutually invisible). */
-export async function getBlockedByIds(userId: string): Promise<string[]> {
-  const { data } = await supabaseAdmin
-    .from("blocked_users")
-    .select("blocked_by")
-    .eq("blocked_user_id", userId);
-  return (data ?? []).map((row) => row.blocked_by);
-}
+export const getBlockedByIds = (userId: string) => idsWhere("blocked_users", "blocked_by", "blocked_user_id", userId);
 
 /** All author ids whose content must be hidden from this user. */
 export async function getHiddenAuthorIds(userId: string): Promise<string[]> {
@@ -72,14 +54,7 @@ export async function getViewerHiddenAuthorIds(): Promise<string[]> {
 /** True when either user has blocked the other. */
 export async function isBlockedBetween(a: string, b: string): Promise<boolean> {
   if (a === b) return false;
-  const { data } = await supabaseAdmin
-    .from("blocked_users")
-    .select("id")
-    .or(
-      `and(blocked_by.eq.${a},blocked_user_id.eq.${b}),and(blocked_by.eq.${b},blocked_user_id.eq.${a})`,
-    )
-    .limit(1);
-  return (data ?? []).length > 0;
+  return (await blockRowsBetween(a, b)).length > 0;
 }
 
 /** Throws when a block exists in either direction. */
@@ -95,13 +70,7 @@ export async function getBlockState(
   targetId: string,
 ): Promise<"by-me" | "by-them" | null> {
   if (viewerId === targetId) return null;
-  const { data } = await supabaseAdmin
-    .from("blocked_users")
-    .select("blocked_by, blocked_user_id")
-    .or(
-      `and(blocked_by.eq.${viewerId},blocked_user_id.eq.${targetId}),and(blocked_by.eq.${targetId},blocked_user_id.eq.${viewerId})`,
-    );
-  const rows = data ?? [];
+  const rows = await blockRowsBetween(viewerId, targetId);
   if (rows.some((r) => r.blocked_by === viewerId)) return "by-me";
   if (rows.length > 0) return "by-them";
   return null;

@@ -1,6 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { POST_WITH_AUTHOR } from "./feed-helpers";
 import {
   LIST_COLUMNS,
   createListSchema,
@@ -29,6 +28,8 @@ export const createList = createServerFn({ method: "POST" })
       .select(LIST_COLUMNS)
       .single();
     if (error) throw error;
+    const mirror = await import("./neon/mirror.server");
+    await mirror.mirrorRow(context.supabase, "lists", list as unknown as Record<string, unknown>, { userId: context.userId });
     return list as unknown as UserList;
   });
 
@@ -50,6 +51,8 @@ export const updateList = createServerFn({ method: "POST" })
       .select(LIST_COLUMNS)
       .single();
     if (error) throw error;
+    const mirror = await import("./neon/mirror.server");
+    await mirror.mirrorRow(context.supabase, "lists", list as unknown as Record<string, unknown>, { userId: context.userId });
     return list as unknown as UserList;
   });
 
@@ -63,6 +66,8 @@ export const deleteList = createServerFn({ method: "POST" })
       .eq("id", data.listId)
       .eq("creator_id", context.userId);
     if (error) throw error;
+    const mirror = await import("./neon/mirror.server");
+    await mirror.mirrorRowDelete("lists", data.listId);
     return { success: true };
   });
 
@@ -74,6 +79,8 @@ export const addMember = createServerFn({ method: "POST" })
       .from("list_members")
       .upsert({ list_id: data.listId, user_id: data.userId }, { onConflict: "list_id,user_id" });
     if (error) throw error;
+    const mirror = await import("./neon/mirror.server");
+    await mirror.resyncScope("list_members", "list_id", data.listId);
     return { isMember: true };
   });
 
@@ -87,6 +94,8 @@ export const removeMember = createServerFn({ method: "POST" })
       .eq("list_id", data.listId)
       .eq("user_id", data.userId);
     if (error) throw error;
+    const mirror = await import("./neon/mirror.server");
+    await mirror.resyncScope("list_members", "list_id", data.listId);
     return { isMember: false };
   });
 
@@ -96,53 +105,25 @@ export const getUserLists = createServerFn({ method: "GET" })
   .validator((input) => userIdSchema.partial().parse(input ?? {}))
   .handler(async ({ data, context }): Promise<UserList[]> => {
     const creatorId = data.userId ?? context.userId;
-    const { data: lists, error } = await context.supabase
-      .from("lists")
-      .select(`${LIST_COLUMNS}, list_members(count)`)
-      .eq("creator_id", creatorId)
-      .order("created_at", { ascending: false });
-    if (error) throw error;
-
-    return ((lists ?? []) as unknown as (UserList & { list_members?: { count: number }[] })[]).map(
-      ({ list_members, ...list }) => ({ ...list, member_count: list_members?.[0]?.count ?? 0 }),
-    );
+    const { listUserLists } = await import("./neon/features.server");
+    return (await listUserLists(context.userId, creatorId)) as unknown as UserList[];
   });
 
 export const getListById = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input) => listIdSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { data: list, error } = await context.supabase
-      .from("lists")
-      .select(LIST_COLUMNS)
-      .eq("id", data.listId)
-      .maybeSingle();
-    if (error) throw error;
+    const neon = await import("./neon/features.server");
+    const list = await neon.getVisibleList(context.userId, data.listId);
     if (!list) return null;
-
-    const [{ data: members, error: membersError }, { data: creator }] = await Promise.all([
-      context.supabase
-        .from("list_members")
-        .select("added_at, user:profiles!list_members_user_id_profiles_fkey(id, username, display_name, avatar_url, is_verified)")
-        .eq("list_id", data.listId)
-        .order("added_at", { ascending: false }),
-      context.supabase
-        .from("profiles")
-        .select("id, username, display_name, avatar_url, is_verified")
-        .eq("id", (list as unknown as UserList).creator_id)
-        .maybeSingle(),
+    const [members, creator] = await Promise.all([
+      neon.listMembersOf(data.listId),
+      neon.getParticipant(list.creator_id),
     ]);
-    if (membersError) throw membersError;
-
     return {
-      list: {
-        ...(list as unknown as UserList),
-        creator: (creator ?? null) as ListMember | null,
-      },
-      members: ((members ?? []) as unknown as { user: ListMember | null }[])
-        .map((row) => row.user)
-        .filter((user): user is ListMember => !!user),
-      isOwner: (list as unknown as UserList).creator_id === context.userId,
+      list: { ...(list as unknown as UserList), creator: (creator ?? null) as unknown as ListMember | null },
+      members: members as unknown as ListMember[],
+      isOwner: list.creator_id === context.userId,
     };
   });
 
@@ -151,35 +132,10 @@ export const getListFeed = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input) => listFeedSchema.parse(input))
   .handler(async ({ data, context }): Promise<Post[]> => {
-    const { data: list, error: listError } = await context.supabase
-      .from("lists")
-      .select("id")
-      .eq("id", data.listId)
-      .maybeSingle();
-    if (listError) throw listError;
+    const neon = await import("./neon/features.server");
+    const list = await neon.getVisibleList(context.userId, data.listId);
     if (!list) throw new Error("List not found");
-
-    const { data: members, error: membersError } = await context.supabase
-      .from("list_members")
-      .select("user_id")
-      .eq("list_id", data.listId);
-    if (membersError) throw membersError;
-
-    const memberIds = (members ?? []).map((m) => m.user_id);
-    if (memberIds.length === 0) return [];
-
-    let query = context.supabase
-      .from("posts")
-      .select(POST_WITH_AUTHOR)
-      .in("author_id", memberIds)
-      .is("parent_post_id", null)
-      .order("created_at", { ascending: false })
-      .limit(data.limit);
-    if (data.cursor) query = query.lt("created_at", data.cursor);
-
-    const { data: posts, error } = await query;
-    if (error) throw error;
-    return (posts ?? []) as unknown as Post[];
+    return (await neon.listFeedForList(data.listId, data.limit, data.cursor)) as unknown as Post[];
   });
 
 /** Public lists a given user belongs to (for profile display). */
@@ -187,15 +143,8 @@ export const getListsContainingUser = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input) => userIdSchema.parse(input))
   .handler(async ({ data, context }): Promise<UserList[]> => {
-    const { data: rows, error } = await context.supabase
-      .from("list_members")
-      .select(`list:lists!list_members_list_id_fkey(${LIST_COLUMNS})`)
-      .eq("user_id", data.userId);
-    if (error) throw error;
-
-    return ((rows ?? []) as unknown as { list: UserList | null }[])
-      .map((row) => row.list)
-      .filter((list): list is UserList => !!list);
+    const { listsContaining } = await import("./neon/features.server");
+    return (await listsContaining(context.userId, data.userId)) as unknown as UserList[];
   });
 
 /** The caller's own lists, each flagged with whether the given user is a member. */
@@ -203,20 +152,6 @@ export const getListMembershipsForUser = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input) => userIdSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const [{ data: lists, error }, { data: memberships, error: membershipError }] = await Promise.all([
-      context.supabase
-        .from("lists")
-        .select(LIST_COLUMNS)
-        .eq("creator_id", context.userId)
-        .order("created_at", { ascending: false }),
-      context.supabase.from("list_members").select("list_id").eq("user_id", data.userId),
-    ]);
-    if (error) throw error;
-    if (membershipError) throw membershipError;
-
-    const memberOf = new Set((memberships ?? []).map((m) => m.list_id));
-    return ((lists ?? []) as unknown as UserList[]).map((list) => ({
-      ...list,
-      isMember: memberOf.has(list.id),
-    }));
+    const { listMembershipsFor } = await import("./neon/features.server");
+    return (await listMembershipsFor(context.userId, data.userId)) as unknown as (UserList & { isMember: boolean })[];
   });
