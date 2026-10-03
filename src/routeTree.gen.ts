@@ -30,7 +30,6 @@ import { Route as AuthenticatedSettingsDisplayRouteImport } from './routes/_auth
 import { Route as AuthenticatedSettingsNotificationsRouteImport } from './routes/_authenticated/settings.notifications'
 import { Route as AuthenticatedSettingsPrivacyRouteImport } from './routes/_authenticated/settings.privacy'
 import { Route as AuthenticatedSettingsProfileRouteImport } from './routes/_authenticated/settings.profile'
-import { Route as ApiPublicNeonCopyRouteImport } from './routes/api/public/neon-copy'
 import { Route as AuthenticatedAnalyticsPostPostIdRouteImport } from './routes/_authenticated/analytics.post.$postId'
 import { Route as AuthenticatedAnalyticsProfileUsernameRouteImport } from './routes/_authenticated/analytics.profile.$username'
 
@@ -147,11 +146,6 @@ const AuthenticatedSettingsProfileRoute =
     path: '/settings/profile',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const ApiPublicNeonCopyRoute = ApiPublicNeonCopyRouteImport.update({
-  id: '/api/public/neon-copy',
-  path: '/api/public/neon-copy',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AuthenticatedAnalyticsPostPostIdRoute =
   AuthenticatedAnalyticsPostPostIdRouteImport.update({
     id: '/analytics/post/$postId',
@@ -184,7 +178,6 @@ export interface FileRoutesByFullPath {
   '/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
   '/settings/privacy': typeof AuthenticatedSettingsPrivacyRoute
   '/settings/profile': typeof AuthenticatedSettingsProfileRoute
-  '/api/public/neon-copy': typeof ApiPublicNeonCopyRoute
   '/lists/': typeof AuthenticatedListsIndexRoute
   '/messages/': typeof AuthenticatedMessagesIndexRoute
   '/analytics/post/$postId': typeof AuthenticatedAnalyticsPostPostIdRoute
@@ -208,7 +201,6 @@ export interface FileRoutesByTo {
   '/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
   '/settings/privacy': typeof AuthenticatedSettingsPrivacyRoute
   '/settings/profile': typeof AuthenticatedSettingsProfileRoute
-  '/api/public/neon-copy': typeof ApiPublicNeonCopyRoute
   '/lists': typeof AuthenticatedListsIndexRoute
   '/messages': typeof AuthenticatedMessagesIndexRoute
   '/analytics/post/$postId': typeof AuthenticatedAnalyticsPostPostIdRoute
@@ -235,7 +227,6 @@ export interface FileRoutesById {
   '/_authenticated/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
   '/_authenticated/settings/privacy': typeof AuthenticatedSettingsPrivacyRoute
   '/_authenticated/settings/profile': typeof AuthenticatedSettingsProfileRoute
-  '/api/public/neon-copy': typeof ApiPublicNeonCopyRoute
   '/_authenticated/lists/': typeof AuthenticatedListsIndexRoute
   '/_authenticated/messages/': typeof AuthenticatedMessagesIndexRoute
   '/_authenticated/analytics/post/$postId': typeof AuthenticatedAnalyticsPostPostIdRoute
@@ -262,7 +253,6 @@ export interface FileRouteTypes {
     | '/settings/notifications'
     | '/settings/privacy'
     | '/settings/profile'
-    | '/api/public/neon-copy'
     | '/lists/'
     | '/messages/'
     | '/analytics/post/$postId'
@@ -286,7 +276,6 @@ export interface FileRouteTypes {
     | '/settings/notifications'
     | '/settings/privacy'
     | '/settings/profile'
-    | '/api/public/neon-copy'
     | '/lists'
     | '/messages'
     | '/analytics/post/$postId'
@@ -312,7 +301,6 @@ export interface FileRouteTypes {
     | '/_authenticated/settings/notifications'
     | '/_authenticated/settings/privacy'
     | '/_authenticated/settings/profile'
-    | '/api/public/neon-copy'
     | '/_authenticated/lists/'
     | '/_authenticated/messages/'
     | '/_authenticated/analytics/post/$postId'
@@ -327,7 +315,6 @@ export interface RootRouteChildren {
   ExploreRoute: typeof ExploreRoute
   SearchRoute: typeof SearchRoute
   PostPostIdRoute: typeof PostPostIdRoute
-  ApiPublicNeonCopyRoute: typeof ApiPublicNeonCopyRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -479,13 +466,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsProfileRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/api/public/neon-copy': {
-      id: '/api/public/neon-copy'
-      path: '/api/public/neon-copy'
-      fullPath: '/api/public/neon-copy'
-      preLoaderRoute: typeof ApiPublicNeonCopyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/_authenticated/analytics/post/$postId': {
       id: '/_authenticated/analytics/post/$postId'
       path: '/analytics/post/$postId'
@@ -566,7 +546,6 @@ const rootRouteChildren: RootRouteChildren = {
   ExploreRoute: ExploreRoute,
   SearchRoute: SearchRoute,
   PostPostIdRoute: PostPostIdRoute,
-  ApiPublicNeonCopyRoute: ApiPublicNeonCopyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
