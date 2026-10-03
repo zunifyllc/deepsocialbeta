@@ -1,12 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import {
-  loadPostAnalytics,
-  loadProfileAnalytics,
-  recordImpression,
-  recordVisit,
-} from "./analytics-helpers";
+import { recordImpression, recordVisit } from "./analytics-helpers";
 export type { PostAnalytics, ProfileAnalytics, PostTimelinePoint, TimeRange } from "./analytics-helpers";
 
 const rangeSchema = z.enum(["7d", "30d", "all"]).default("30d");
@@ -24,7 +19,12 @@ export const recordPostImpression = createServerFn({ method: "POST" })
       const { isBlockedBetween } = await import("./privacy-helpers.server");
       if (await isBlockedBetween(context.userId, post.author_id)) return { recorded: false };
     }
-    return recordImpression(context.supabase, context.userId, data.postId);
+    const result = await recordImpression(context.supabase, context.userId, data.postId);
+    if (result.recorded) {
+      const { resyncScope } = await import("./neon/mirror.server");
+      await resyncScope("post_impressions", "post_id", data.postId);
+    }
+    return result;
   });
 
 export const recordProfileVisit = createServerFn({ method: "POST" })
@@ -33,17 +33,26 @@ export const recordProfileVisit = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { isBlockedBetween } = await import("./privacy-helpers.server");
     if (await isBlockedBetween(context.userId, data.profileId)) return { recorded: false };
-    return recordVisit(context.supabase, context.userId, data.profileId);
+    const result = await recordVisit(context.supabase, context.userId, data.profileId);
+    if (result.recorded) {
+      const { resyncScope } = await import("./neon/mirror.server");
+      await resyncScope("profile_visits", "profile_id", data.profileId);
+    }
+    return result;
   });
 
 export const getPostAnalytics = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input) => z.object({ postId: z.string().uuid(), range: rangeSchema }).parse(input))
-  .handler(({ data, context }) =>
-    loadPostAnalytics(context.supabase, context.userId, data.postId, data.range),
-  );
+  .handler(async ({ data, context }) => {
+    const { loadPostAnalyticsNeon } = await import("./neon/features.server");
+    return loadPostAnalyticsNeon(context.userId, data.postId, data.range);
+  });
 
 export const getProfileAnalytics = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input) => z.object({ range: rangeSchema }).parse(input ?? {}))
-  .handler(({ data, context }) => loadProfileAnalytics(context.supabase, context.userId, data.range));
+  .handler(async ({ data, context }) => {
+    const { loadProfileAnalyticsNeon } = await import("./neon/features.server");
+    return loadProfileAnalyticsNeon(context.userId, data.range);
+  });

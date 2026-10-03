@@ -180,6 +180,7 @@ export const createPost = createServerFn({ method: "POST" })
 
     const mirror = await import("./neon/mirror.server");
     await mirror.mirrorPost(context.supabase, created.id);
+    if (data.poll) await mirror.mirrorPollForPost(created.id);
     if (data.parentPostId) await mirror.syncPostCounters(context.supabase, data.parentPostId);
 
     return created;

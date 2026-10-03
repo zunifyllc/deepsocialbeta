@@ -133,7 +133,7 @@ export async function resyncScope(table: MirrorTable, column: string, value: str
       for (const ref of PROFILE_REFS) {
         if (typeof row[ref] === "string") await ensureProfile(admin, row[ref] as string);
       }
-      if (typeof row.post_id === "string") await ensurePost(admin, row.post_id);
+      if (typeof row["post_id"] === "string") await ensurePost(admin, row["post_id"]);
     }
     await q(`delete from ${table} where ${column} = $1::uuid`, [value]);
     const conflict = table === "notification_settings" ? "user_id" : "id";

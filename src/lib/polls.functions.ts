@@ -1,8 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { createPublicClient } from "./supabase-public";
-import { hoursToInterval, isPollExpired, pollInputSchema, readPollResults } from "./poll-helpers";
+import { hoursToInterval, isPollExpired, pollInputSchema } from "./poll-helpers";
 
 export const createPoll = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -31,7 +30,8 @@ export const createPoll = createServerFn({ method: "POST" })
       })),
     );
     if (optionsError) throw optionsError;
-
+    const { mirrorPollForPost } = await import("./neon/mirror.server");
+    await mirrorPollForPost(data.postId);
     return { pollId: poll.id };
   });
 
@@ -41,6 +41,8 @@ export const deletePoll = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase.from("polls").delete().eq("id", data.pollId);
     if (error) throw error;
+    const { mirrorRowDelete } = await import("./neon/mirror.server");
+    await mirrorRowDelete("polls", data.pollId);
     return { success: true };
   });
 
@@ -107,7 +109,10 @@ export const votePoll = createServerFn({ method: "POST" })
       }
     }
 
-    return readPollResults(context.supabase, data.pollId, context.userId);
+    const { resyncScope } = await import("./neon/mirror.server");
+    await resyncScope("poll_votes", "poll_id", data.pollId);
+    const { readPollResultsNeon } = await import("./neon/features.server");
+    return readPollResultsNeon(data.pollId, context.userId);
   });
 
 export const getPollResults = createServerFn({ method: "GET" })
@@ -115,6 +120,6 @@ export const getPollResults = createServerFn({ method: "GET" })
     z.object({ pollId: z.string().uuid(), userId: z.string().uuid().optional() }).parse(input),
   )
   .handler(async ({ data }) => {
-    const supabase = createPublicClient();
-    return readPollResults(supabase, data.pollId, data.userId ?? null);
+    const { readPollResultsNeon } = await import("./neon/features.server");
+    return readPollResultsNeon(data.pollId, data.userId ?? null);
   });

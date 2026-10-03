@@ -39,6 +39,8 @@ export const startConversation = createServerFn({ method: "POST" })
       target_user_id: data.userId,
     });
     if (error) throw error;
+    const { resyncScope } = await import("./neon/mirror.server");
+    await resyncScope("conversations", "id", conversationId as string);
     return { conversationId: conversationId as string };
   });
 
@@ -63,103 +65,33 @@ export const sendMessage = createServerFn({ method: "POST" })
       .select(`id, conversation_id, sender_id, content, created_at, sender:profiles!messages_sender_id_profiles_fkey(${PARTICIPANT_FIELDS})`)
       .single();
     if (error) throw error;
+    const { resyncScope } = await import("./neon/mirror.server");
+    await resyncScope("conversations", "id", data.conversationId);
+    await resyncScope("messages", "conversation_id", data.conversationId);
     return message as unknown as Message;
   });
 
 export const getConversations = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data: conversations, error } = await context.supabase
-      .from("conversations")
-      .select("id, participants, created_at, updated_at")
-      .order("updated_at", { ascending: false })
-      .limit(50);
-    if (error) throw error;
-
-    const rows = conversations ?? [];
-    if (rows.length === 0) return [] as ConversationSummary[];
-
-    const otherIds = Array.from(
-      new Set(
-        rows
-          .map((row) => (row.participants ?? []).find((id) => id !== context.userId))
-          .filter((id): id is string => !!id),
-      ),
-    );
-
-    const [{ data: profiles }, { data: messages }] = await Promise.all([
-      context.supabase.from("profiles").select(PARTICIPANT_FIELDS).in("id", otherIds),
-      context.supabase
-        .from("messages")
-        .select("id, conversation_id, content, created_at, sender_id")
-        .in(
-          "conversation_id",
-          rows.map((row) => row.id),
-        )
-        .order("created_at", { ascending: false }),
-    ]);
-
-    const profileById = new Map((profiles ?? []).map((p) => [p.id, p as MessageParticipant]));
-    const lastByConversation = new Map<string, ConversationSummary["last_message"]>();
-    for (const message of messages ?? []) {
-      if (!lastByConversation.has(message.conversation_id)) {
-        lastByConversation.set(message.conversation_id, {
-          id: message.id,
-          content: message.content,
-          created_at: message.created_at,
-          sender_id: message.sender_id,
-        });
-      }
-    }
-
-    return rows.map((row) => {
-      const otherId = (row.participants ?? []).find((id) => id !== context.userId);
-      return {
-        id: row.id,
-        created_at: row.created_at,
-        updated_at: row.updated_at,
-        other: otherId ? profileById.get(otherId) ?? null : null,
-        last_message: lastByConversation.get(row.id) ?? null,
-      } satisfies ConversationSummary;
-    });
+    const { listConversations } = await import("./neon/features.server");
+    return (await listConversations(context.userId)) as unknown as ConversationSummary[];
   });
 
 export const getConversation = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input) => z.object({ conversationId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { data: conversation, error } = await context.supabase
-      .from("conversations")
-      .select("id, participants, created_at, updated_at")
-      .eq("id", data.conversationId)
-      .maybeSingle();
-    if (error) throw error;
+    const { getConversationFor } = await import("./neon/features.server");
+    const conversation = await getConversationFor(context.userId, data.conversationId);
     if (!conversation) throw new Error("Conversation not found");
-
-    const otherId = (conversation.participants ?? []).find((id) => id !== context.userId);
-    let other: MessageParticipant | null = null;
-    if (otherId) {
-      const { data: profile } = await context.supabase
-        .from("profiles")
-        .select(PARTICIPANT_FIELDS)
-        .eq("id", otherId)
-        .maybeSingle();
-      other = (profile as MessageParticipant | null) ?? null;
-    }
-
-    return { id: conversation.id, other };
+    return { id: conversation.id, other: (conversation.other as unknown as MessageParticipant | null) ?? null };
   });
 
 export const getMessages = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input) => z.object({ conversationId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { data: messages, error } = await context.supabase
-      .from("messages")
-      .select(`id, conversation_id, sender_id, content, created_at, sender:profiles!messages_sender_id_profiles_fkey(${PARTICIPANT_FIELDS})`)
-      .eq("conversation_id", data.conversationId)
-      .order("created_at", { ascending: true })
-      .limit(200);
-    if (error) throw error;
-    return (messages ?? []) as unknown as Message[];
+    const { listMessages } = await import("./neon/features.server");
+    return (await listMessages(context.userId, data.conversationId)) as unknown as Message[];
   });
