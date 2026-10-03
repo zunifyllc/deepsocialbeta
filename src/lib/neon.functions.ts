@@ -22,3 +22,13 @@ export const checkNeonStatus = createServerFn({ method: "GET" })
     const schema = await checkNeonSchema();
     return { configured: true, ...result, schema };
   });
+
+/** Admin-only: copies all old-backend data into Neon and verifies it. */
+export const runNeonDataCopy = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { hasAdminRole } = await import("./neon/features.server");
+    if (!(await hasAdminRole(context.userId))) throw new Error("Admins only");
+    const { runDataCopy } = await import("./neon/data-copy.server");
+    return runDataCopy();
+  });
