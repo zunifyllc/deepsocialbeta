@@ -1,3 +1,4 @@
+import { getCurrentProfile } from "@/lib/profiles.functions";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
@@ -50,8 +51,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [router]);
 
   const loadProfile = async (userId: string) => {
-    const { data } = await supabase.from("profiles").select("*").eq("id", userId).single();
-    setProfile((data as unknown as Profile) ?? null);
+    void userId;
+    try {
+      setProfile((await getCurrentProfile()) as unknown as Profile);
+    } catch {
+      setProfile(null);
+    }
   };
 
 
