@@ -100,47 +100,25 @@ export const markNotificationRead = createServerFn({ method: "POST" })
   )
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase
-      .from("notifications")
-      .update({ read_at: new Date().toISOString() })
-      .in("id", data.notificationIds)
-      .eq("user_id", context.userId);
-    if (error) throw error;
-    const { resyncScope } = await import("./neon/mirror.server");
-    await resyncScope("notifications", "user_id", context.userId);
+    const W = await import("./neon/writes.server");
+    await W.markNotificationsRead(context.userId, data.notificationIds);
     return { success: true };
   });
 
 export const markAllNotificationsRead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { error } = await context.supabase
-      .from("notifications")
-      .update({ read_at: new Date().toISOString() })
-      .eq("user_id", context.userId)
-      .is("read_at", null);
-    if (error) throw error;
-    const { resyncScope } = await import("./neon/mirror.server");
-    await resyncScope("notifications", "user_id", context.userId);
+    const W = await import("./neon/writes.server");
+    await W.markNotificationsRead(context.userId, null);
     return { success: true };
   });
 
 export const getNotificationSettings = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { getNotificationSettingsRow } = await import("./neon/features.server");
-    const existing = await getNotificationSettingsRow(context.userId);
-    if (existing) return existing as unknown as NotificationSettings;
-
-    const { data: created, error: insertError } = await context.supabase
-      .from("notification_settings")
-      .insert({ user_id: context.userId })
-      .select("user_id, email_likes, email_replies, email_follows, email_reposts")
-      .single();
-    if (insertError) throw insertError;
-    const { resyncScope } = await import("./neon/mirror.server");
-    await resyncScope("notification_settings", "user_id", context.userId);
-    return created as NotificationSettings;
+    const W = await import("./neon/writes.server");
+    await W.ensureActor(context.supabase, context.userId);
+    return (await W.getOrCreateNotificationSettings(context.userId)) as unknown as NotificationSettings;
   });
 
 export const updateNotificationSettings = createServerFn({ method: "POST" })
@@ -156,23 +134,8 @@ export const updateNotificationSettings = createServerFn({ method: "POST" })
   )
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }) => {
-    const { data: updated, error } = await context.supabase
-      .from("notification_settings")
-      .upsert(
-        {
-          user_id: context.userId,
-          email_likes: data.email_likes,
-          email_replies: data.email_replies,
-          email_follows: data.email_follows,
-          email_reposts: data.email_reposts,
-        },
-        { onConflict: "user_id" },
-      )
-      .select("user_id, email_likes, email_replies, email_follows, email_reposts")
-      .single();
-    if (error) throw error;
-    const { resyncScope } = await import("./neon/mirror.server");
-    await resyncScope("notification_settings", "user_id", context.userId);
-    return updated as NotificationSettings;
+    const W = await import("./neon/writes.server");
+    await W.ensureActor(context.supabase, context.userId);
+    return (await W.upsertNotificationSettings(context.userId, data)) as unknown as NotificationSettings;
   });
 

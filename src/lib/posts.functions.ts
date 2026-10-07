@@ -1,10 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { mergeFeedItems, POST_WITH_AUTHOR } from "./feed-helpers";
-import { hoursToInterval, pollInputSchema } from "./poll-helpers";
-import { canEditPost } from "./post-edit-helpers";
-import { assertFutureSchedule, requireOwnScheduledPost } from "./schedule-helpers";
+import { mergeFeedItems } from "./feed-helpers";
+import { pollInputSchema } from "./poll-helpers";
+import { assertFutureSchedule } from "./schedule-helpers";
 
 export interface PostAuthor {
   id: string;
@@ -124,66 +123,17 @@ export const createPost = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input) => createPostSchema.parse(input))
   .handler(async ({ data, context }) => {
+    const W = await import("./neon/writes.server");
+    await W.ensureActor(context.supabase, context.userId);
     if (data.scheduledAt) assertFutureSchedule(data.scheduledAt);
     if (data.parentPostId) {
-      const { data: parent } = await context.supabase
-        .from("posts")
-        .select("author_id")
-        .eq("id", data.parentPostId)
-        .maybeSingle();
+      const parent = await W.postAuthor(data.parentPostId);
       if (parent && parent.author_id !== context.userId) {
         const { assertNotBlocked } = await import("./privacy-helpers.server");
         await assertNotBlocked(context.userId, parent.author_id);
       }
     }
-    const { data: post, error } = await context.supabase
-      .from("posts")
-      .insert({
-        author_id: context.userId,
-        content: data.content,
-        parent_post_id: data.parentPostId ?? null,
-        media_urls: data.mediaUrls,
-        status: data.scheduledAt ? "scheduled" : "published",
-        scheduled_at: data.scheduledAt ?? null,
-        ...(data.scheduledAt ? { created_at: data.scheduledAt } : {}),
-      })
-      .select(POST_WITH_AUTHOR)
-      .single();
-    if (error) throw error;
-
-    const created = post as unknown as Post;
-
-    if (data.poll) {
-      const { data: poll, error: pollError } = await context.supabase
-        .from("polls")
-        .insert({ post_id: created.id, duration: hoursToInterval(data.poll.durationHours) })
-        .select("id")
-        .single();
-      if (pollError) {
-        // Keep the post/poll pair consistent: drop the post if the poll fails.
-        await context.supabase.from("posts").delete().eq("id", created.id);
-        throw pollError;
-      }
-      const { error: optionsError } = await context.supabase.from("poll_options").insert(
-        data.poll.options.map((content, index) => ({
-          poll_id: poll.id,
-          content,
-          position: index + 1,
-        })),
-      );
-      if (optionsError) {
-        await context.supabase.from("posts").delete().eq("id", created.id);
-        throw optionsError;
-      }
-      created.poll = { id: poll.id };
-    }
-
-    const mirror = await import("./neon/mirror.server");
-    await mirror.mirrorPost(context.supabase, created.id);
-    if (data.poll) await mirror.mirrorPollForPost(created.id);
-    if (data.parentPostId) await mirror.syncPostCounters(context.supabase, data.parentPostId);
-
-    return created;
+    return (await W.createPost(context.userId, data)) as unknown as Post;
   });
 
 export const editPost = createServerFn({ method: "POST" })
@@ -192,57 +142,16 @@ export const editPost = createServerFn({ method: "POST" })
     z.object({ postId: z.string().uuid(), newContent: z.string().min(1).max(280) }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { data: existing, error: fetchError } = await context.supabase
-      .from("posts")
-      .select("id, author_id, created_at")
-      .eq("id", data.postId)
-      .maybeSingle();
-    if (fetchError) throw fetchError;
-    if (!existing || existing.author_id !== context.userId) {
-      throw new Error("You can only edit your own posts");
-    }
-    if (!canEditPost(existing.created_at)) {
-      throw new Error("Editing window has expired");
-    }
-
-    const { data: post, error } = await context.supabase
-      .from("posts")
-      .update({ content: data.newContent, edited_at: new Date().toISOString(), is_edited: true })
-      .eq("id", data.postId)
-      .eq("author_id", context.userId)
-      .select(POST_WITH_AUTHOR)
-      .single();
-    if (error) throw error;
-
-    const { mirrorPost } = await import("./neon/mirror.server");
-    await mirrorPost(context.supabase, data.postId);
-
-    return post as unknown as Post;
+    const W = await import("./neon/writes.server");
+    return (await W.editPost(context.userId, data.postId, data.newContent)) as unknown as Post;
   });
 
 export const deletePost = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { data: existing } = await context.supabase
-      .from("posts")
-      .select("parent_post_id")
-      .eq("id", data.id)
-      .eq("author_id", context.userId)
-      .maybeSingle();
-
-    const { error } = await context.supabase
-      .from("posts")
-      .delete()
-      .eq("id", data.id)
-      .eq("author_id", context.userId);
-    if (error) throw error;
-
-    const mirror = await import("./neon/mirror.server");
-    await mirror.mirrorPostDelete(data.id);
-    if (existing?.parent_post_id) {
-      await mirror.syncPostCounters(context.supabase, existing.parent_post_id);
-    }
+    const W = await import("./neon/writes.server");
+    await W.deletePost(context.userId, data.id);
     return { success: true };
   });
 
@@ -270,15 +179,8 @@ export const publishNow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input) => z.object({ postId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    await requireOwnScheduledPost(context.supabase, data.postId, context.userId);
-    const { error } = await context.supabase
-      .from("posts")
-      .update({ status: "published", scheduled_at: null, created_at: new Date().toISOString() })
-      .eq("id", data.postId)
-      .eq("author_id", context.userId);
-    if (error) throw error;
-    const { mirrorPost } = await import("./neon/mirror.server");
-    await mirrorPost(context.supabase, data.postId);
+    const W = await import("./neon/writes.server");
+    await W.publishNow(context.userId, data.postId);
     return { success: true };
   });
 
@@ -286,15 +188,8 @@ export const cancelScheduledPost = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input) => z.object({ postId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    await requireOwnScheduledPost(context.supabase, data.postId, context.userId);
-    const { error } = await context.supabase
-      .from("posts")
-      .delete()
-      .eq("id", data.postId)
-      .eq("author_id", context.userId);
-    if (error) throw error;
-    const { mirrorPostDelete } = await import("./neon/mirror.server");
-    await mirrorPostDelete(data.postId);
+    const W = await import("./neon/writes.server");
+    await W.cancelScheduledPost(context.userId, data.postId);
     return { success: true };
   });
 
@@ -311,33 +206,7 @@ export const updateScheduledPost = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    await requireOwnScheduledPost(context.supabase, data.postId, context.userId);
+    const W = await import("./neon/writes.server");
     if (data.scheduledAt) assertFutureSchedule(data.scheduledAt);
-
-    const updates: {
-      content?: string;
-      media_urls?: string[] | null;
-      scheduled_at?: string;
-      created_at?: string;
-    } = {};
-    if (data.content !== undefined) updates["content"] = data.content;
-    if (data.mediaUrls !== undefined) updates["media_urls"] = data.mediaUrls;
-    if (data.scheduledAt !== undefined) {
-      updates["scheduled_at"] = data.scheduledAt;
-      updates["created_at"] = data.scheduledAt;
-    }
-
-    const { data: post, error } = await context.supabase
-      .from("posts")
-      .update(updates)
-      .eq("id", data.postId)
-      .eq("author_id", context.userId)
-      .select(POST_WITH_AUTHOR)
-      .single();
-    if (error) throw error;
-
-    const { mirrorPost } = await import("./neon/mirror.server");
-    await mirrorPost(context.supabase, data.postId);
-
-    return post as unknown as Post;
+    return (await W.updateScheduledPost(context.userId, data.postId, data)) as unknown as Post;
   });

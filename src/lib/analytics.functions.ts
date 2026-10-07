@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { recordImpression, recordVisit } from "./analytics-helpers";
 export type { PostAnalytics, ProfileAnalytics, PostTimelinePoint, TimeRange } from "./analytics-helpers";
 
 const rangeSchema = z.enum(["7d", "30d", "all"]).default("30d");
@@ -10,35 +9,25 @@ export const recordPostImpression = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input) => z.object({ postId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { data: post } = await context.supabase
-      .from("posts")
-      .select("author_id")
-      .eq("id", data.postId)
-      .maybeSingle();
+    const W = await import("./neon/writes.server");
+    await W.ensureActor(context.supabase, context.userId);
+    const post = await W.postAuthor(data.postId);
     if (post && post.author_id !== context.userId) {
       const { isBlockedBetween } = await import("./privacy-helpers.server");
       if (await isBlockedBetween(context.userId, post.author_id)) return { recorded: false };
     }
-    const result = await recordImpression(context.supabase, context.userId, data.postId);
-    if (result.recorded) {
-      const { resyncScope } = await import("./neon/mirror.server");
-      await resyncScope("post_impressions", "post_id", data.postId);
-    }
-    return result;
+    return W.recordImpression(context.userId, data.postId);
   });
 
 export const recordProfileVisit = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input) => z.object({ profileId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
+    const W = await import("./neon/writes.server");
+    await W.ensureActor(context.supabase, context.userId);
     const { isBlockedBetween } = await import("./privacy-helpers.server");
     if (await isBlockedBetween(context.userId, data.profileId)) return { recorded: false };
-    const result = await recordVisit(context.supabase, context.userId, data.profileId);
-    if (result.recorded) {
-      const { resyncScope } = await import("./neon/mirror.server");
-      await resyncScope("profile_visits", "profile_id", data.profileId);
-    }
-    return result;
+    return W.recordVisit(context.userId, data.profileId);
   });
 
 export const getPostAnalytics = createServerFn({ method: "GET" })

@@ -24,71 +24,17 @@ export const toggleRepost = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { data: target } = await context.supabase
-      .from("posts")
-      .select("author_id")
-      .eq("id", data.postId)
-      .maybeSingle();
-    if (target && target.author_id !== context.userId) {
+    const W = await import("./neon/writes.server");
+    await W.ensureActor(context.supabase, context.userId);
+    const target = await W.postAuthor(data.postId);
+    if (!target) throw new Error("Post not found");
+    if (target.author_id !== context.userId) {
       const { assertNotBlocked } = await import("./privacy-helpers.server");
       await assertNotBlocked(context.userId, target.author_id);
     }
-
-    const mirror = await import("./neon/mirror.server");
     const { countReposts } = await import("./neon/posts.server");
-
-    const { data: existing } = await context.supabase
-      .from("reposts")
-      .select("id")
-      .eq("post_id", data.postId)
-      .eq("user_id", context.userId)
-      .maybeSingle();
-
-    if (existing) {
-      const { error: delError } = await context.supabase.from("reposts").delete().eq("id", existing.id);
-      if (delError) throw delError;
-      await mirror.mirrorRowDelete("reposts", existing.id);
-
-      // Undo repost — unless the user is quoting, in which case we replace it.
-      if (!data.quoteContent) {
-        await mirror.syncPostCounters(context.supabase, data.postId);
-        return { isReposted: false, repostCount: await countReposts(data.postId) };
-      }
-    }
-
-    const { data: inserted, error } = await context.supabase
-      .from("reposts")
-      .insert({
-        post_id: data.postId,
-        user_id: context.userId,
-        quote_content: data.quoteContent ?? null,
-      })
-      .select("*")
-      .single();
-    if (error) throw error;
-
-    await mirror.mirrorRow(context.supabase, "reposts", inserted, {
-      userId: context.userId,
-      postId: data.postId,
-    });
-    await mirror.syncPostCounters(context.supabase, data.postId);
-
-    const { data: post } = await context.supabase
-      .from("posts")
-      .select("author_id")
-      .eq("id", data.postId)
-      .single();
-    if (post && post.author_id !== context.userId) {
-      await context.supabase.from("notifications").insert({
-        user_id: post.author_id,
-        actor_id: context.userId,
-        type: "repost",
-        post_id: data.postId,
-      });
-      await (await import("./neon/mirror.server")).resyncScope("notifications", "user_id", post.author_id);
-    }
-
-    return { isReposted: true, repostCount: await countReposts(data.postId) };
+    const result = await W.toggleRepost(context.userId, data.postId, data.quoteContent);
+    return { ...result, repostCount: await countReposts(data.postId) };
   });
 
 export const getRepostStatus = createServerFn({ method: "GET" })

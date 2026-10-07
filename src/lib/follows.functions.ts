@@ -6,48 +6,12 @@ export const toggleFollow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input) => z.object({ followingId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    if (data.followingId === context.userId) {
-      throw new Error("Cannot follow yourself");
-    }
-
+    const W = await import("./neon/writes.server");
+    if (data.followingId === context.userId) throw new Error("Cannot follow yourself");
+    await W.ensureActor(context.supabase, context.userId);
     const { assertNotBlocked } = await import("./privacy-helpers.server");
     await assertNotBlocked(context.userId, data.followingId);
-
-    const mirror = await import("./neon/mirror.server");
-
-    const { data: existing } = await context.supabase
-      .from("follows")
-      .select("id")
-      .eq("follower_id", context.userId)
-      .eq("following_id", data.followingId)
-      .maybeSingle();
-
-    if (existing) {
-      const { error } = await context.supabase.from("follows").delete().eq("id", existing.id);
-      if (error) throw error;
-      await mirror.mirrorRowDelete("follows", existing.id);
-      return { following: false };
-    }
-
-    const { data: inserted, error } = await context.supabase
-      .from("follows")
-      .insert({ follower_id: context.userId, following_id: data.followingId })
-      .select("*")
-      .single();
-    if (error) throw error;
-
-    await mirror.mirrorProfile(context.supabase, data.followingId);
-    await mirror.mirrorRow(context.supabase, "follows", inserted, { userId: context.userId });
-
-    // Create notification
-    await context.supabase.from("notifications").insert({
-      user_id: data.followingId,
-      actor_id: context.userId,
-      type: "follow",
-    });
-      await (await import("./neon/mirror.server")).resyncScope("notifications", "user_id", data.followingId);
-
-    return { following: true };
+    return W.toggleFollow(context.userId, data.followingId);
   });
 
 export const getFollowStatus = createServerFn({ method: "GET" })

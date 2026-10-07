@@ -32,6 +32,7 @@ import { Route as AuthenticatedSettingsPrivacyRouteImport } from './routes/_auth
 import { Route as AuthenticatedSettingsProfileRouteImport } from './routes/_authenticated/settings.profile'
 import { Route as AuthenticatedAnalyticsPostPostIdRouteImport } from './routes/_authenticated/analytics.post.$postId'
 import { Route as AuthenticatedAnalyticsProfileUsernameRouteImport } from './routes/_authenticated/analytics.profile.$username'
+import { Route as ApiPublicCronPublishScheduledRouteImport } from './routes/api/public/cron/publish-scheduled'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -158,6 +159,12 @@ const AuthenticatedAnalyticsProfileUsernameRoute =
     path: '/analytics/profile/$username',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiPublicCronPublishScheduledRoute =
+  ApiPublicCronPublishScheduledRouteImport.update({
+    id: '/api/public/cron/publish-scheduled',
+    path: '/api/public/cron/publish-scheduled',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -182,6 +189,7 @@ export interface FileRoutesByFullPath {
   '/messages/': typeof AuthenticatedMessagesIndexRoute
   '/analytics/post/$postId': typeof AuthenticatedAnalyticsPostPostIdRoute
   '/analytics/profile/$username': typeof AuthenticatedAnalyticsProfileUsernameRoute
+  '/api/public/cron/publish-scheduled': typeof ApiPublicCronPublishScheduledRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -205,6 +213,7 @@ export interface FileRoutesByTo {
   '/messages': typeof AuthenticatedMessagesIndexRoute
   '/analytics/post/$postId': typeof AuthenticatedAnalyticsPostPostIdRoute
   '/analytics/profile/$username': typeof AuthenticatedAnalyticsProfileUsernameRoute
+  '/api/public/cron/publish-scheduled': typeof ApiPublicCronPublishScheduledRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -231,6 +240,7 @@ export interface FileRoutesById {
   '/_authenticated/messages/': typeof AuthenticatedMessagesIndexRoute
   '/_authenticated/analytics/post/$postId': typeof AuthenticatedAnalyticsPostPostIdRoute
   '/_authenticated/analytics/profile/$username': typeof AuthenticatedAnalyticsProfileUsernameRoute
+  '/api/public/cron/publish-scheduled': typeof ApiPublicCronPublishScheduledRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -257,6 +267,7 @@ export interface FileRouteTypes {
     | '/messages/'
     | '/analytics/post/$postId'
     | '/analytics/profile/$username'
+    | '/api/public/cron/publish-scheduled'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -280,6 +291,7 @@ export interface FileRouteTypes {
     | '/messages'
     | '/analytics/post/$postId'
     | '/analytics/profile/$username'
+    | '/api/public/cron/publish-scheduled'
   id:
     | '__root__'
     | '/'
@@ -305,6 +317,7 @@ export interface FileRouteTypes {
     | '/_authenticated/messages/'
     | '/_authenticated/analytics/post/$postId'
     | '/_authenticated/analytics/profile/$username'
+    | '/api/public/cron/publish-scheduled'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -315,6 +328,7 @@ export interface RootRouteChildren {
   ExploreRoute: typeof ExploreRoute
   SearchRoute: typeof SearchRoute
   PostPostIdRoute: typeof PostPostIdRoute
+  ApiPublicCronPublishScheduledRoute: typeof ApiPublicCronPublishScheduledRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -480,6 +494,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAnalyticsProfileUsernameRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/cron/publish-scheduled': {
+      id: '/api/public/cron/publish-scheduled'
+      path: '/api/public/cron/publish-scheduled'
+      fullPath: '/api/public/cron/publish-scheduled'
+      preLoaderRoute: typeof ApiPublicCronPublishScheduledRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -546,6 +567,7 @@ const rootRouteChildren: RootRouteChildren = {
   ExploreRoute: ExploreRoute,
   SearchRoute: SearchRoute,
   PostPostIdRoute: PostPostIdRoute,
+  ApiPublicCronPublishScheduledRoute: ApiPublicCronPublishScheduledRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
