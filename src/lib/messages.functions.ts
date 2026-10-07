@@ -33,15 +33,10 @@ export const startConversation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input) => z.object({ userId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
+    const W = await import("./neon/writes.server");
     if (data.userId === context.userId) throw new Error("You cannot message yourself");
-
-    const { data: conversationId, error } = await context.supabase.rpc("get_or_create_conversation", {
-      target_user_id: data.userId,
-    });
-    if (error) throw error;
-    const { resyncScope } = await import("./neon/mirror.server");
-    await resyncScope("conversations", "id", conversationId as string);
-    return { conversationId: conversationId as string };
+    await W.ensureActor(context.supabase, context.userId);
+    return { conversationId: await W.getOrCreateConversation(context.userId, data.userId) };
   });
 
 export const sendMessage = createServerFn({ method: "POST" })
@@ -55,20 +50,8 @@ export const sendMessage = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { data: message, error } = await context.supabase
-      .from("messages")
-      .insert({
-        conversation_id: data.conversationId,
-        sender_id: context.userId,
-        content: data.content,
-      })
-      .select(`id, conversation_id, sender_id, content, created_at, sender:profiles!messages_sender_id_profiles_fkey(${PARTICIPANT_FIELDS})`)
-      .single();
-    if (error) throw error;
-    const { resyncScope } = await import("./neon/mirror.server");
-    await resyncScope("conversations", "id", data.conversationId);
-    await resyncScope("messages", "conversation_id", data.conversationId);
-    return message as unknown as Message;
+    const W = await import("./neon/writes.server");
+    return (await W.sendMessage(context.userId, data.conversationId, data.content)) as unknown as Message;
   });
 
 export const getConversations = createServerFn({ method: "GET" })

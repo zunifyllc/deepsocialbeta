@@ -17,20 +17,9 @@ export const createList = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input) => createListSchema.parse(input))
   .handler(async ({ data, context }): Promise<UserList> => {
-    const { data: list, error } = await context.supabase
-      .from("lists")
-      .insert({
-        creator_id: context.userId,
-        name: data.name,
-        description: data.description ?? null,
-        is_public: data.isPublic,
-      })
-      .select(LIST_COLUMNS)
-      .single();
-    if (error) throw error;
-    const mirror = await import("./neon/mirror.server");
-    await mirror.mirrorRow(context.supabase, "lists", list as unknown as Record<string, unknown>, { userId: context.userId });
-    return list as unknown as UserList;
+    const W = await import("./neon/writes.server");
+    await W.ensureActor(context.supabase, context.userId);
+    return (await W.createList(context.userId, data.name, data.description ?? null, data.isPublic)) as unknown as UserList;
   });
 
 export const updateList = createServerFn({ method: "POST" })
@@ -43,31 +32,16 @@ export const updateList = createServerFn({ method: "POST" })
     if (data.isPublic !== undefined) patch.is_public = data.isPublic;
 
 
-    const { data: list, error } = await context.supabase
-      .from("lists")
-      .update(patch)
-      .eq("id", data.listId)
-      .eq("creator_id", context.userId)
-      .select(LIST_COLUMNS)
-      .single();
-    if (error) throw error;
-    const mirror = await import("./neon/mirror.server");
-    await mirror.mirrorRow(context.supabase, "lists", list as unknown as Record<string, unknown>, { userId: context.userId });
-    return list as unknown as UserList;
+    const W = await import("./neon/writes.server");
+    return (await W.updateList(context.userId, data.listId, patch)) as unknown as UserList;
   });
 
 export const deleteList = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input) => listIdSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase
-      .from("lists")
-      .delete()
-      .eq("id", data.listId)
-      .eq("creator_id", context.userId);
-    if (error) throw error;
-    const mirror = await import("./neon/mirror.server");
-    await mirror.mirrorRowDelete("lists", data.listId);
+    const W = await import("./neon/writes.server");
+    await W.deleteList(context.userId, data.listId);
     return { success: true };
   });
 
@@ -75,12 +49,8 @@ export const addMember = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input) => listMemberSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase
-      .from("list_members")
-      .upsert({ list_id: data.listId, user_id: data.userId }, { onConflict: "list_id,user_id" });
-    if (error) throw error;
-    const mirror = await import("./neon/mirror.server");
-    await mirror.resyncScope("list_members", "list_id", data.listId);
+    const W = await import("./neon/writes.server");
+    await W.addListMember(context.userId, data.listId, data.userId);
     return { isMember: true };
   });
 
@@ -88,14 +58,8 @@ export const removeMember = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input) => listMemberSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase
-      .from("list_members")
-      .delete()
-      .eq("list_id", data.listId)
-      .eq("user_id", data.userId);
-    if (error) throw error;
-    const mirror = await import("./neon/mirror.server");
-    await mirror.resyncScope("list_members", "list_id", data.listId);
+    const W = await import("./neon/writes.server");
+    await W.removeListMember(context.userId, data.listId, data.userId);
     return { isMember: false };
   });
 

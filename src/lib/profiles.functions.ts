@@ -64,16 +64,9 @@ export const getProfileByUsername = createServerFn({ method: "GET" })
 export const getCurrentProfile = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const [neon, mirror] = await Promise.all([
-      import("./neon/profiles.server"),
-      import("./neon/mirror.server"),
-    ]);
-    let profile = await neon.getProfileById(context.userId);
-    if (!profile) {
-      // New account created after the last copy — replicate it, then read again.
-      await mirror.mirrorProfile(context.supabase, context.userId);
-      profile = await neon.getProfileById(context.userId);
-    }
+    const [neon, W] = await Promise.all([import("./neon/profiles.server"), import("./neon/writes.server")]);
+    await W.ensureActor(context.supabase, context.userId);
+    const profile = await neon.getProfileById(context.userId);
     if (!profile) throw new Error("Profile not found");
     return profile as unknown as Profile;
   });
@@ -95,56 +88,17 @@ export const updateProfile = createServerFn({ method: "POST" })
     if (data.accent_color) update["accent_color"] = data.accent_color.toLowerCase();
     if (data.theme_mode) update["theme_mode"] = data.theme_mode;
 
-    const { data: profile, error } = await context.supabase
-      .from("profiles")
-      .update(update as never)
-      .eq("id", context.userId)
-      .select()
-      .single();
-    if (error) throw error;
-
-    const { mirrorProfile } = await import("./neon/mirror.server");
-    await mirrorProfile(context.supabase, context.userId);
-
-    return profile as unknown as Profile;
+    const W = await import("./neon/writes.server");
+    await W.ensureActor(context.supabase, context.userId);
+    return (await W.updateProfile(context.userId, update)) as unknown as Profile;
   });
 
 export const togglePinPost = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input) => z.object({ postId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { data: post, error: postError } = await context.supabase
-      .from("posts")
-      .select("id, author_id")
-      .eq("id", data.postId)
-      .maybeSingle();
-    if (postError) throw postError;
-    if (!post || post.author_id !== context.userId) {
-      throw new Error("You can only pin your own posts");
-    }
-
-    const { data: current, error: profileError } = await context.supabase
-      .from("profiles")
-      .select("pinned_post_id")
-      .eq("id", context.userId)
-      .single();
-    if (profileError) throw profileError;
-
-    const nextPinned = current.pinned_post_id === data.postId ? null : data.postId;
-
-    const { data: profile, error } = await context.supabase
-      .from("profiles")
-      .update({ pinned_post_id: nextPinned })
-      .eq("id", context.userId)
-      .select()
-      .single();
-    if (error) throw error;
-
-    const mirror = await import("./neon/mirror.server");
-    if (nextPinned) await mirror.mirrorPost(context.supabase, nextPinned);
-    await mirror.mirrorProfile(context.supabase, context.userId);
-
-    return profile as unknown as Profile;
+    const W = await import("./neon/writes.server");
+    return (await W.togglePinPost(context.userId, data.postId)) as unknown as Profile;
   });
 
 export const getPinnedPost = createServerFn({ method: "GET" })

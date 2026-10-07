@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { setVerified } from "./admin-helpers";
+import type { AdminUserRow } from "./admin-helpers";
 export type { AdminUserRow } from "./admin-helpers";
 
 export const getMyAdminStatus = createServerFn({ method: "GET" })
@@ -32,16 +32,18 @@ export const verifyUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input) => z.object({ userId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const row = await setVerified(context.supabase, context.userId, data.userId, true);
-    await (await import("./neon/mirror.server")).mirrorProfile(context.supabase, data.userId);
-    return row;
+    const { hasAdminRole } = await import("./neon/features.server");
+    if (!(await hasAdminRole(context.userId))) throw new Error("Admins only");
+    const W = await import("./neon/writes.server");
+    return (await W.setVerified(data.userId, true)) as unknown as AdminUserRow;
   });
 
 export const unverifyUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input) => z.object({ userId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const row = await setVerified(context.supabase, context.userId, data.userId, false);
-    await (await import("./neon/mirror.server")).mirrorProfile(context.supabase, data.userId);
-    return row;
+    const { hasAdminRole } = await import("./neon/features.server");
+    if (!(await hasAdminRole(context.userId))) throw new Error("Admins only");
+    const W = await import("./neon/writes.server");
+    return (await W.setVerified(data.userId, false)) as unknown as AdminUserRow;
   });
