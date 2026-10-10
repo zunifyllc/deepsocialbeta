@@ -44,5 +44,5 @@ export const signMediaUrls = createServerFn({ method: "POST" })
     const { data: urls } = await supabaseAdmin.storage.from("media").createSignedUrls(data.paths, 60 * 60);
     return (urls ?? [])
       .filter((u) => u.path && u.signedUrl)
-      .map((u) => ({ path: u.path as string, signedUrl: u.signedUrl }));
+      .map((u) => ({ path: u.path as string, signedUrl: u.signedUrl as string }));
   });
