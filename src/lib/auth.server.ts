@@ -13,7 +13,7 @@ function sanitizeUsername(value: string) {
 }
 
 /** Creates the Neon profile for a new auth user, with the same id. */
-async function createProfileFor(user: { id: string; name: string; email: string; image?: string | null }) {
+async function createProfileFor(user: { id: string; name: string; email: string; image?: string | null | undefined }) {
   const { q, one } = await import("@/lib/neon/core.server");
   if (await one(`select 1 from profiles where id = $1::uuid`, [user.id])) return;
   const fromName = sanitizeUsername(user.name ?? "");
