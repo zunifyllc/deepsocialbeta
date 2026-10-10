@@ -54,12 +54,8 @@ export function useMediaUrls(refs: string[] | null | undefined) {
       const paths = list.filter((ref) => !isAbsoluteUrl(ref));
       const signed = new Map<string, string>();
       if (paths.length > 0) {
-        const { data: urls } = await supabase.storage
-          .from(MEDIA_BUCKET)
-          .createSignedUrls(paths, 60 * 60);
-        urls?.forEach((entry) => {
-          if (entry.path && entry.signedUrl) signed.set(entry.path, entry.signedUrl);
-        });
+        const urls = await signMediaUrls({ data: { paths } });
+        urls.forEach((entry) => signed.set(entry.path, entry.signedUrl));
       }
       return list.map((ref) => (isAbsoluteUrl(ref) ? ref : signed.get(ref) ?? ""));
     },
