@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { createUploadUrl, deleteOwnMedia, signMediaUrls } from "./storage.functions";
 
 export const MEDIA_BUCKET = "media";
 export const MAX_MEDIA_PER_POST = 4;
@@ -23,19 +24,19 @@ function randomId() {
 }
 
 /** Uploads an image into the signed-in user's own media folder and returns its storage path. */
-export async function uploadMediaFile(file: File, userId: string): Promise<string> {
+export async function uploadMediaFile(file: File, _userId: string): Promise<string> {
   const ext = file.name.includes(".") ? file.name.split(".").pop()!.toLowerCase() : "bin";
-  const path = `${userId}/${randomId()}.${ext}`;
+  const { path, token } = await createUploadUrl({ data: { bucket: MEDIA_BUCKET, fileName: `${randomId()}.${ext}` } });
   const { error } = await supabase.storage
     .from(MEDIA_BUCKET)
-    .upload(path, file, { contentType: file.type, upsert: false });
+    .uploadToSignedUrl(path, token, file, { contentType: file.type });
   if (error) throw error;
   return path;
 }
 
 export async function deleteMediaFile(path: string): Promise<void> {
   if (isAbsoluteUrl(path)) return;
-  await supabase.storage.from(MEDIA_BUCKET).remove([path]);
+  await deleteOwnMedia({ data: { path } });
 }
 
 export function isAbsoluteUrl(value: string) {

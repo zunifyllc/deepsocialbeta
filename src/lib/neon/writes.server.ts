@@ -1,7 +1,6 @@
 // Neon is the primary and only database for app data writes. Every write
 // lives here; multi-table writes run inside one transaction.
 // Auth stays on the old backend, so auth user ids are profiles.id.
-import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PoolClient } from "@neondatabase/serverless";
 import { withTransaction } from "@/lib/neon.server";
 import { q, one, type Row } from "./core.server";
@@ -14,27 +13,16 @@ const txq = async <T = Row>(tx: Tx, text: string, params: unknown[] = []) =>
   (await tx.query(text, params)).rows as T[];
 
 // ------------------------------------------------------------ identity ---
-const PROFILE_COLUMNS = [
-  "id", "username", "display_name", "bio", "location", "website", "pronouns", "avatar_url",
-  "banner_url", "is_verified", "accent_color", "theme_mode", "created_at", "updated_at",
-];
-
-/**
- * Makes sure the signed-in user has a Neon profile. Accounts are created by
- * the auth provider, which seeds the initial profile row on signup; that row
- * is copied into Neon once (same id), after which Neon owns it.
- */
-export async function ensureActor(supabase: SupabaseClient, userId: string): Promise<void> {
+/** Makes sure the signed-in user has a Neon profile (same id as the auth user). */
+export async function ensureActor(userId: string): Promise<void> {
   if (await one(`select 1 from profiles where id = $1::uuid`, [userId])) return;
-  const { data } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
-  if (!data) throw new Error("Profile not found");
-  const row = data as Row;
-  const cols = PROFILE_COLUMNS.filter((c) => row[c] !== undefined);
-  await q(
-    `insert into profiles (${cols.join(", ")}) values (${cols.map((_, i) => `$${i + 1}`).join(", ")})
-     on conflict (id) do nothing`,
-    cols.map((c) => row[c]),
+  const user = await one<{ id: string; name: string; email: string; image: string | null }>(
+    `select id, name, email, image from "user" where id = $1`,
+    [userId],
   );
+  if (!user) throw new Error("Profile not found");
+  const { createProfileFor } = await import("@/lib/auth.server");
+  await createProfileFor(user);
 }
 
 async function postAuthor(postId: string) {

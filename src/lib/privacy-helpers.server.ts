@@ -1,6 +1,4 @@
-import { getRequestHeader } from "@tanstack/react-start/server";
 import { idsWhere, blockRowsBetween } from "./neon/features.server";
-import { createPublicClient } from "./supabase-public";
 
 /**
  * Resolves the signed-in user for otherwise-public read functions, so mute and
@@ -8,18 +6,10 @@ import { createPublicClient } from "./supabase-public";
  * Returns null for anonymous/SSR calls with no bearer token.
  */
 export async function getViewerId(): Promise<string | null> {
-  let header: string | null | undefined;
   try {
-    header = getRequestHeader("authorization");
-  } catch {
-    return null;
-  }
-  if (!header || !header.toLowerCase().startsWith("bearer ")) return null;
-  const token = header.slice(7).trim();
-  if (!token) return null;
-  try {
-    const { data } = await createPublicClient().auth.getUser(token);
-    return data.user?.id ?? null;
+    const { getRequestHeaders } = await import("@tanstack/react-start/server");
+    const { getSessionUserId } = await import("./auth.server");
+    return await getSessionUserId(new Headers(getRequestHeaders() as unknown as HeadersInit));
   } catch {
     return null;
   }

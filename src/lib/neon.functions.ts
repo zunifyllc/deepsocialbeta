@@ -8,11 +8,8 @@ import { requireAuth } from "@/lib/auth-middleware";
 export const checkNeonStatus = createServerFn({ method: "GET" })
   .middleware([requireAuth])
   .handler(async ({ context }) => {
-    const { data: isAdmin } = await context.supabase.rpc("has_role", {
-      _user_id: context.userId,
-      _role: "admin",
-    });
-    if (!isAdmin) throw new Error("Forbidden");
+    const { hasAdminRole } = await import("./neon/features.server");
+    if (!(await hasAdminRole(context.userId))) throw new Error("Forbidden");
 
     const { hasNeonDatabase, checkNeonConnection, checkNeonSchema } = await import(
       "./neon.server"
