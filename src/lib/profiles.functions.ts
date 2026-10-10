@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireAuth } from "@/lib/auth-middleware";
 import type { Post } from "./posts.functions";
 
 export interface Profile {
@@ -62,17 +62,17 @@ export const getProfileByUsername = createServerFn({ method: "GET" })
   });
 
 export const getCurrentProfile = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .handler(async ({ context }) => {
     const [neon, W] = await Promise.all([import("./neon/profiles.server"), import("./neon/writes.server")]);
-    await W.ensureActor(context.supabase, context.userId);
+    await W.ensureActor(context.userId);
     const profile = await neon.getProfileById(context.userId);
     if (!profile) throw new Error("Profile not found");
     return profile as unknown as Profile;
   });
 
 export const updateProfile = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) => profileSchema.parse(input))
   .handler(async ({ data, context }) => {
     // Only touch the fields the caller actually sent, so the appearance
@@ -89,12 +89,12 @@ export const updateProfile = createServerFn({ method: "POST" })
     if (data.theme_mode) update["theme_mode"] = data.theme_mode;
 
     const W = await import("./neon/writes.server");
-    await W.ensureActor(context.supabase, context.userId);
+    await W.ensureActor(context.userId);
     return (await W.updateProfile(context.userId, update)) as unknown as Profile;
   });
 
 export const togglePinPost = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) => z.object({ postId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const W = await import("./neon/writes.server");

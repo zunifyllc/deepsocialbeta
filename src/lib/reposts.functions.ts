@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireAuth } from "@/lib/auth-middleware";
 import type { Post } from "./posts.functions";
 
 export interface RepostUser {
@@ -14,7 +14,7 @@ export interface RepostUser {
 }
 
 export const toggleRepost = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) =>
     z
       .object({
@@ -25,7 +25,7 @@ export const toggleRepost = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const W = await import("./neon/writes.server");
-    await W.ensureActor(context.supabase, context.userId);
+    await W.ensureActor(context.userId);
     const target = await W.postAuthor(data.postId);
     if (!target) throw new Error("Post not found");
     if (target.author_id !== context.userId) {
@@ -38,7 +38,7 @@ export const toggleRepost = createServerFn({ method: "POST" })
   });
 
 export const getRepostStatus = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) => z.object({ postId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const [{ isReposted }, { countReposts }] = await Promise.all([

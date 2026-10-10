@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireAuth } from "@/lib/auth-middleware";
 
 export interface MessageParticipant {
   id: string;
@@ -30,17 +30,17 @@ export interface ConversationSummary {
 const PARTICIPANT_FIELDS = "id, username, display_name, avatar_url, is_verified";
 
 export const startConversation = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) => z.object({ userId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const W = await import("./neon/writes.server");
     if (data.userId === context.userId) throw new Error("You cannot message yourself");
-    await W.ensureActor(context.supabase, context.userId);
+    await W.ensureActor(context.userId);
     return { conversationId: await W.getOrCreateConversation(context.userId, data.userId) };
   });
 
 export const sendMessage = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) =>
     z
       .object({
@@ -55,14 +55,14 @@ export const sendMessage = createServerFn({ method: "POST" })
   });
 
 export const getConversations = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .handler(async ({ context }) => {
     const { listConversations } = await import("./neon/features.server");
     return (await listConversations(context.userId)) as unknown as ConversationSummary[];
   });
 
 export const getConversation = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) => z.object({ conversationId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { getConversationFor } = await import("./neon/features.server");
@@ -72,7 +72,7 @@ export const getConversation = createServerFn({ method: "GET" })
   });
 
 export const getMessages = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) => z.object({ conversationId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { listMessages } = await import("./neon/features.server");

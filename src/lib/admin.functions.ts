@@ -1,18 +1,18 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireAuth } from "@/lib/auth-middleware";
 import type { AdminUserRow } from "./admin-helpers";
 export type { AdminUserRow } from "./admin-helpers";
 
 export const getMyAdminStatus = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .handler(async ({ context }) => {
     const { hasAdminRole } = await import("./neon/features.server");
     return { isAdmin: await hasAdminRole(context.userId) };
   });
 
 export const getAllUsers = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) =>
     z
       .object({
@@ -29,7 +29,7 @@ export const getAllUsers = createServerFn({ method: "GET" })
   });
 
 export const verifyUser = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) => z.object({ userId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { hasAdminRole } = await import("./neon/features.server");
@@ -39,7 +39,7 @@ export const verifyUser = createServerFn({ method: "POST" })
   });
 
 export const unverifyUser = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) => z.object({ userId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { hasAdminRole } = await import("./neon/features.server");

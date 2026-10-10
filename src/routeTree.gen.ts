@@ -30,6 +30,7 @@ import { Route as AuthenticatedSettingsDisplayRouteImport } from './routes/_auth
 import { Route as AuthenticatedSettingsNotificationsRouteImport } from './routes/_authenticated/settings.notifications'
 import { Route as AuthenticatedSettingsPrivacyRouteImport } from './routes/_authenticated/settings.privacy'
 import { Route as AuthenticatedSettingsProfileRouteImport } from './routes/_authenticated/settings.profile'
+import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as AuthenticatedAnalyticsPostPostIdRouteImport } from './routes/_authenticated/analytics.post.$postId'
 import { Route as AuthenticatedAnalyticsProfileUsernameRouteImport } from './routes/_authenticated/analytics.profile.$username'
 import { Route as ApiPublicCronPublishScheduledRouteImport } from './routes/api/public/cron/publish-scheduled'
@@ -147,6 +148,11 @@ const AuthenticatedSettingsProfileRoute =
     path: '/settings/profile',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
+  id: '/api/auth/$',
+  path: '/api/auth/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedAnalyticsPostPostIdRoute =
   AuthenticatedAnalyticsPostPostIdRouteImport.update({
     id: '/analytics/post/$postId',
@@ -185,6 +191,7 @@ export interface FileRoutesByFullPath {
   '/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
   '/settings/privacy': typeof AuthenticatedSettingsPrivacyRoute
   '/settings/profile': typeof AuthenticatedSettingsProfileRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
   '/lists/': typeof AuthenticatedListsIndexRoute
   '/messages/': typeof AuthenticatedMessagesIndexRoute
   '/analytics/post/$postId': typeof AuthenticatedAnalyticsPostPostIdRoute
@@ -209,6 +216,7 @@ export interface FileRoutesByTo {
   '/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
   '/settings/privacy': typeof AuthenticatedSettingsPrivacyRoute
   '/settings/profile': typeof AuthenticatedSettingsProfileRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
   '/lists': typeof AuthenticatedListsIndexRoute
   '/messages': typeof AuthenticatedMessagesIndexRoute
   '/analytics/post/$postId': typeof AuthenticatedAnalyticsPostPostIdRoute
@@ -236,6 +244,7 @@ export interface FileRoutesById {
   '/_authenticated/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
   '/_authenticated/settings/privacy': typeof AuthenticatedSettingsPrivacyRoute
   '/_authenticated/settings/profile': typeof AuthenticatedSettingsProfileRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
   '/_authenticated/lists/': typeof AuthenticatedListsIndexRoute
   '/_authenticated/messages/': typeof AuthenticatedMessagesIndexRoute
   '/_authenticated/analytics/post/$postId': typeof AuthenticatedAnalyticsPostPostIdRoute
@@ -263,6 +272,7 @@ export interface FileRouteTypes {
     | '/settings/notifications'
     | '/settings/privacy'
     | '/settings/profile'
+    | '/api/auth/$'
     | '/lists/'
     | '/messages/'
     | '/analytics/post/$postId'
@@ -287,6 +297,7 @@ export interface FileRouteTypes {
     | '/settings/notifications'
     | '/settings/privacy'
     | '/settings/profile'
+    | '/api/auth/$'
     | '/lists'
     | '/messages'
     | '/analytics/post/$postId'
@@ -313,6 +324,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings/notifications'
     | '/_authenticated/settings/privacy'
     | '/_authenticated/settings/profile'
+    | '/api/auth/$'
     | '/_authenticated/lists/'
     | '/_authenticated/messages/'
     | '/_authenticated/analytics/post/$postId'
@@ -328,6 +340,7 @@ export interface RootRouteChildren {
   ExploreRoute: typeof ExploreRoute
   SearchRoute: typeof SearchRoute
   PostPostIdRoute: typeof PostPostIdRoute
+  ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiPublicCronPublishScheduledRoute: typeof ApiPublicCronPublishScheduledRoute
 }
 
@@ -480,6 +493,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsProfileRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/auth/$': {
+      id: '/api/auth/$'
+      path: '/api/auth/$'
+      fullPath: '/api/auth/$'
+      preLoaderRoute: typeof ApiAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/analytics/post/$postId': {
       id: '/_authenticated/analytics/post/$postId'
       path: '/analytics/post/$postId'
@@ -567,6 +587,7 @@ const rootRouteChildren: RootRouteChildren = {
   ExploreRoute: ExploreRoute,
   SearchRoute: SearchRoute,
   PostPostIdRoute: PostPostIdRoute,
+  ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiPublicCronPublishScheduledRoute: ApiPublicCronPublishScheduledRoute,
 }
 export const routeTree = rootRouteImport

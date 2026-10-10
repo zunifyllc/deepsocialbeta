@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireAuth } from "@/lib/auth-middleware";
 import { groupNotifications, type GroupedNotification, type RawNotification } from "./notification-helpers";
 
 export type { GroupedNotification, RawNotification } from "./notification-helpers";
@@ -46,7 +46,7 @@ const SELECT = `
 `;
 
 export const getNotifications = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .handler(async ({ context }) => {
     const { getHiddenAuthorIds } = await import("./privacy-helpers.server");
     const { listNotifications } = await import("./neon/features.server");
@@ -66,7 +66,7 @@ export const getGroupedNotifications = createServerFn({ method: "GET" })
       })
       .parse(input ?? {}),
   )
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .handler(async ({ data, context }) => {
     const from = data.page * PAGE_ROWS;
     const { getHiddenAuthorIds } = await import("./privacy-helpers.server");
@@ -98,7 +98,7 @@ export const markNotificationRead = createServerFn({ method: "POST" })
       .object({ notificationIds: z.array(z.string().uuid()).min(1).max(200) })
       .parse(input),
   )
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .handler(async ({ data, context }) => {
     const W = await import("./neon/writes.server");
     await W.markNotificationsRead(context.userId, data.notificationIds);
@@ -106,7 +106,7 @@ export const markNotificationRead = createServerFn({ method: "POST" })
   });
 
 export const markAllNotificationsRead = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .handler(async ({ context }) => {
     const W = await import("./neon/writes.server");
     await W.markNotificationsRead(context.userId, null);
@@ -114,10 +114,10 @@ export const markAllNotificationsRead = createServerFn({ method: "POST" })
   });
 
 export const getNotificationSettings = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .handler(async ({ context }) => {
     const W = await import("./neon/writes.server");
-    await W.ensureActor(context.supabase, context.userId);
+    await W.ensureActor(context.userId);
     return (await W.getOrCreateNotificationSettings(context.userId)) as unknown as NotificationSettings;
   });
 
@@ -132,10 +132,10 @@ export const updateNotificationSettings = createServerFn({ method: "POST" })
       })
       .parse(input),
   )
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .handler(async ({ data, context }) => {
     const W = await import("./neon/writes.server");
-    await W.ensureActor(context.supabase, context.userId);
+    await W.ensureActor(context.userId);
     return (await W.upsertNotificationSettings(context.userId, data)) as unknown as NotificationSettings;
   });
 

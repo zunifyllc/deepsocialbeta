@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireAuth } from "@/lib/auth-middleware";
 import {
   LIST_COLUMNS,
   createListSchema,
@@ -14,16 +14,16 @@ import {
 import type { Post } from "./posts.functions";
 
 export const createList = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) => createListSchema.parse(input))
   .handler(async ({ data, context }): Promise<UserList> => {
     const W = await import("./neon/writes.server");
-    await W.ensureActor(context.supabase, context.userId);
+    await W.ensureActor(context.userId);
     return (await W.createList(context.userId, data.name, data.description ?? null, data.isPublic)) as unknown as UserList;
   });
 
 export const updateList = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) => updateListSchema.parse(input))
   .handler(async ({ data, context }): Promise<UserList> => {
     const patch: { name?: string; description?: string | null; is_public?: boolean } = {};
@@ -37,7 +37,7 @@ export const updateList = createServerFn({ method: "POST" })
   });
 
 export const deleteList = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) => listIdSchema.parse(input))
   .handler(async ({ data, context }) => {
     const W = await import("./neon/writes.server");
@@ -46,7 +46,7 @@ export const deleteList = createServerFn({ method: "POST" })
   });
 
 export const addMember = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) => listMemberSchema.parse(input))
   .handler(async ({ data, context }) => {
     const W = await import("./neon/writes.server");
@@ -55,7 +55,7 @@ export const addMember = createServerFn({ method: "POST" })
   });
 
 export const removeMember = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) => listMemberSchema.parse(input))
   .handler(async ({ data, context }) => {
     const W = await import("./neon/writes.server");
@@ -65,7 +65,7 @@ export const removeMember = createServerFn({ method: "POST" })
 
 /** Lists created by a user. Only the owner sees their private lists (RLS). */
 export const getUserLists = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) => userIdSchema.partial().parse(input ?? {}))
   .handler(async ({ data, context }): Promise<UserList[]> => {
     const creatorId = data.userId ?? context.userId;
@@ -74,7 +74,7 @@ export const getUserLists = createServerFn({ method: "GET" })
   });
 
 export const getListById = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) => listIdSchema.parse(input))
   .handler(async ({ data, context }) => {
     const neon = await import("./neon/features.server");
@@ -93,7 +93,7 @@ export const getListById = createServerFn({ method: "GET" })
 
 /** Posts from the members of a list. Visibility is enforced by RLS on the list. */
 export const getListFeed = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) => listFeedSchema.parse(input))
   .handler(async ({ data, context }): Promise<Post[]> => {
     const neon = await import("./neon/features.server");
@@ -104,7 +104,7 @@ export const getListFeed = createServerFn({ method: "GET" })
 
 /** Public lists a given user belongs to (for profile display). */
 export const getListsContainingUser = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) => userIdSchema.parse(input))
   .handler(async ({ data, context }): Promise<UserList[]> => {
     const { listsContaining } = await import("./neon/features.server");
@@ -113,7 +113,7 @@ export const getListsContainingUser = createServerFn({ method: "GET" })
 
 /** The caller's own lists, each flagged with whether the given user is a member. */
 export const getListMembershipsForUser = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) => userIdSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { listMembershipsFor } = await import("./neon/features.server");
