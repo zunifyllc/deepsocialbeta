@@ -1,12 +1,19 @@
 import { getCurrentProfile } from "@/lib/profiles.functions";
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "@tanstack/react-router";
-import { supabase } from "@/integrations/supabase/client";
-import type { User } from "@supabase/supabase-js";
+import { useQueryClient } from "@tanstack/react-query";
+import { authClient } from "@/lib/auth-client";
 import type { Profile } from "@/lib/profiles.functions";
 
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string;
+  image?: string | null;
+}
+
 interface AuthContextValue {
-  user: User | null;
+  user: AuthUser | null;
   profile: Profile | null;
   isLoading: boolean;
   signOut: () => Promise<void>;
@@ -16,59 +23,49 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const { data: session, isPending } = authClient.useSession();
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(false);
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const user = (session?.user as AuthUser | undefined) ?? null;
+  const userId = user?.id ?? null;
 
-  useEffect(() => {
-    const getInitial = async () => {
-      const { data } = await supabase.auth.getUser();
-      setUser(data.user ?? null);
-      if (data.user) {
-        await loadProfile(data.user.id);
-      }
-      setIsLoading(false);
-    };
-    getInitial();
-
-    const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-      if (currentUser) {
-        await loadProfile(currentUser.id);
-      } else {
-        setProfile(null);
-      }
-      if (event === "SIGNED_OUT") {
-        router.navigate({ to: "/auth" });
-      }
-    });
-
-    return () => {
-      listener.subscription.unsubscribe();
-    };
-  }, [router]);
-
-  const loadProfile = async (userId: string) => {
-    void userId;
+  const loadProfile = useCallback(async () => {
+    setProfileLoading(true);
     try {
       setProfile((await getCurrentProfile()) as unknown as Profile);
     } catch {
       setProfile(null);
+    } finally {
+      setProfileLoading(false);
     }
-  };
+  }, []);
 
+  useEffect(() => {
+    if (userId) void loadProfile();
+    else setProfile(null);
+  }, [userId, loadProfile]);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    await queryClient.cancelQueries();
+    queryClient.clear();
+    await authClient.signOut();
+    setProfile(null);
+    await router.navigate({ to: "/auth", replace: true });
   };
 
   const refreshProfile = async () => {
-    if (user) await loadProfile(user.id);
+    if (userId) await loadProfile();
   };
 
-  return <AuthContext.Provider value={{ user, profile, isLoading, signOut, refreshProfile }}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider
+      value={{ user, profile, isLoading: isPending || profileLoading, signOut, refreshProfile }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {
