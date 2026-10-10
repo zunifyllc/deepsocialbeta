@@ -1,19 +1,19 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireAuth } from "@/lib/auth-middleware";
 import type { Post } from "./posts.functions";
 
 export const toggleBookmark = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) => z.object({ postId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const W = await import("./neon/writes.server");
-    await W.ensureActor(context.supabase, context.userId);
+    await W.ensureActor(context.userId);
     return W.toggleBookmark(context.userId, data.postId);
   });
 
 export const getBookmarkStatus = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) => z.object({ postId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { getBookmark } = await import("./neon/social.server");
@@ -26,7 +26,7 @@ export const getBookmarkStatus = createServerFn({ method: "GET" })
   });
 
 export const getBookmarkedPosts = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) =>
     z
       .object({
@@ -57,17 +57,17 @@ export interface BookmarkCollection {
 }
 
 export const createCollection = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) => z.object({ name: z.string().trim().min(1).max(50) }).parse(input))
   .handler(async ({ data, context }) => {
     const W = await import("./neon/writes.server");
-    await W.ensureActor(context.supabase, context.userId);
+    await W.ensureActor(context.userId);
     const collection = await W.createCollection(context.userId, data.name);
     return { ...collection, bookmarkCount: 0 } as BookmarkCollection;
   });
 
 export const getMyCollections = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .handler(async ({ context }) => {
     const { listCollections } = await import("./neon/social.server");
     const result = await listCollections(context.userId);
@@ -79,7 +79,7 @@ export const getMyCollections = createServerFn({ method: "GET" })
   });
 
 export const deleteCollection = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) => z.object({ collectionId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const W = await import("./neon/writes.server");
@@ -88,7 +88,7 @@ export const deleteCollection = createServerFn({ method: "POST" })
   });
 
 export const moveBookmark = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) =>
     z
       .object({
@@ -105,7 +105,7 @@ export const moveBookmark = createServerFn({ method: "POST" })
 
 /** Convenience wrapper matching the spec name. */
 export const getBookmarksByCollection = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) =>
     z
       .object({

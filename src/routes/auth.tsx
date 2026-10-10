@@ -5,13 +5,13 @@ import { Waves, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
+import { authClient } from "@/lib/auth-client";
 
 export const Route = createFileRoute("/auth")({
+  ssr: false,
   beforeLoad: async () => {
-    const { data } = await supabase.auth.getUser();
-    if (data.user) throw redirect({ to: "/home" });
+    const { data } = await authClient.getSession();
+    if (data?.user) throw redirect({ to: "/home" });
   },
   head: () => ({
     meta: [
@@ -41,22 +41,14 @@ function AuthPage() {
 
     try {
       if (mode === "reset") {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/reset-password`,
-        });
-        if (error) throw error;
-        setMessage("Check your email for a password reset link.");
+        setMessage("Password reset by email is coming soon. Please contact support for help.");
       } else if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { data: { username } },
-        });
-        if (error) throw error;
-        setMessage("Check your email to confirm your account.");
+        const { error } = await authClient.signUp.email({ email, password, name: username || email.split("@")[0]! });
+        if (error) throw new Error(error.message ?? "Sign up failed");
+        await router.navigate({ to: "/home" });
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        const { error } = await authClient.signIn.email({ email, password });
+        if (error) throw new Error(error.message ?? "Sign in failed");
         await router.navigate({ to: "/home" });
       }
     } catch (err) {
@@ -67,12 +59,12 @@ function AuthPage() {
   };
 
   const handleGoogle = async () => {
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
+    const { error } = await authClient.signIn.social({
+      provider: "google",
+      callbackURL: `${window.location.origin}/home`,
+      errorCallbackURL: `${window.location.origin}/auth`,
     });
-    if (result.error) setError(result.error.message);
-    if (result.redirected) return;
-    // Tokens received; session is set by the helper.
+    if (error) setError(error.message ?? "Google sign-in failed");
   };
 
   return (

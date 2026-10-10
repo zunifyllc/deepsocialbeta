@@ -1,21 +1,21 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireAuth } from "@/lib/auth-middleware";
 
 export const toggleFollow = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) => z.object({ followingId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const W = await import("./neon/writes.server");
     if (data.followingId === context.userId) throw new Error("Cannot follow yourself");
-    await W.ensureActor(context.supabase, context.userId);
+    await W.ensureActor(context.userId);
     const { assertNotBlocked } = await import("./privacy-helpers.server");
     await assertNotBlocked(context.userId, data.followingId);
     return W.toggleFollow(context.userId, data.followingId);
   });
 
 export const getFollowStatus = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) => z.object({ followingId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { getFollowState } = await import("./neon/social.server");

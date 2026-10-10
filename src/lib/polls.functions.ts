@@ -1,10 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireAuth } from "@/lib/auth-middleware";
 import { pollInputSchema } from "./poll-helpers";
 
 export const createPoll = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) => z.object({ postId: z.string().uuid() }).merge(pollInputSchema).parse(input))
   .handler(async ({ data, context }) => {
     const W = await import("./neon/writes.server");
@@ -12,7 +12,7 @@ export const createPoll = createServerFn({ method: "POST" })
   });
 
 export const deletePoll = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) => z.object({ pollId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const W = await import("./neon/writes.server");
@@ -21,13 +21,13 @@ export const deletePoll = createServerFn({ method: "POST" })
   });
 
 export const votePoll = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) =>
     z.object({ pollId: z.string().uuid(), optionId: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data, context }) => {
     const W = await import("./neon/writes.server");
-    await W.ensureActor(context.supabase, context.userId);
+    await W.ensureActor(context.userId);
     await W.votePoll(context.userId, data.pollId, data.optionId);
     const { readPollResultsNeon } = await import("./neon/features.server");
     return readPollResultsNeon(data.pollId, context.userId);

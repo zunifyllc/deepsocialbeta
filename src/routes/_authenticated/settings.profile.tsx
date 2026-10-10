@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { AppShell } from "@/components/layout/app-shell";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
+import { createUploadUrl } from "@/lib/storage.functions";
 import { updateProfile, getCurrentProfile, type Profile } from "@/lib/profiles.functions";
 import { useServerFn } from "@tanstack/react-start";
 
@@ -54,11 +55,12 @@ function EditProfilePage() {
   if (!user || !profile) return null;
 
   const uploadFile = async (file: File, bucket: string) => {
-    const path = `${user.id}/${Date.now()}-${file.name}`;
-    const { error } = await supabase.storage.from(bucket).upload(path, file);
+    const { path, token, publicUrl } = await createUploadUrl({
+      data: { bucket: bucket as "avatars" | "banners", fileName: file.name },
+    });
+    const { error } = await supabase.storage.from(bucket).uploadToSignedUrl(path, token, file);
     if (error) throw error;
-    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
-    return data.publicUrl;
+    return publicUrl;
   };
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {

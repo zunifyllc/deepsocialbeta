@@ -1,18 +1,15 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireAuth } from "@/lib/auth-middleware";
 
 /**
  * Admin-only connectivity check for the future Neon database.
  * No app feature depends on this; it exists to verify configuration.
  */
 export const checkNeonStatus = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .handler(async ({ context }) => {
-    const { data: isAdmin } = await context.supabase.rpc("has_role", {
-      _user_id: context.userId,
-      _role: "admin",
-    });
-    if (!isAdmin) throw new Error("Forbidden");
+    const { hasAdminRole } = await import("./neon/features.server");
+    if (!(await hasAdminRole(context.userId))) throw new Error("Forbidden");
 
     const { hasNeonDatabase, checkNeonConnection, checkNeonSchema } = await import(
       "./neon.server"
@@ -25,7 +22,7 @@ export const checkNeonStatus = createServerFn({ method: "GET" })
 
 /** Admin-only: copies all old-backend data into Neon and verifies it. */
 export const runNeonDataCopy = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .handler(async ({ context }) => {
     const { hasAdminRole } = await import("./neon/features.server");
     if (!(await hasAdminRole(context.userId))) throw new Error("Admins only");

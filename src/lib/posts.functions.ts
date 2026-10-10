@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireAuth } from "@/lib/auth-middleware";
 import { mergeFeedItems } from "./feed-helpers";
 import { pollInputSchema } from "./poll-helpers";
 import { assertFutureSchedule } from "./schedule-helpers";
@@ -120,11 +120,11 @@ export const getUserPosts = createServerFn({ method: "GET" })
   });
 
 export const createPost = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) => createPostSchema.parse(input))
   .handler(async ({ data, context }) => {
     const W = await import("./neon/writes.server");
-    await W.ensureActor(context.supabase, context.userId);
+    await W.ensureActor(context.userId);
     if (data.scheduledAt) assertFutureSchedule(data.scheduledAt);
     if (data.parentPostId) {
       const parent = await W.postAuthor(data.parentPostId);
@@ -137,7 +137,7 @@ export const createPost = createServerFn({ method: "POST" })
   });
 
 export const editPost = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) =>
     z.object({ postId: z.string().uuid(), newContent: z.string().min(1).max(280) }).parse(input),
   )
@@ -147,7 +147,7 @@ export const editPost = createServerFn({ method: "POST" })
   });
 
 export const deletePost = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const W = await import("./neon/writes.server");
@@ -160,7 +160,7 @@ export const deletePost = createServerFn({ method: "POST" })
  * user requests their own likes.
  */
 export const getUserLikedPosts = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) => z.object({ userId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     if (data.userId !== context.userId) return [] as Post[];
@@ -169,14 +169,14 @@ export const getUserLikedPosts = createServerFn({ method: "GET" })
   });
 
 export const getScheduledPosts = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .handler(async ({ context }) => {
     const { listScheduledPosts } = await import("./neon/posts.server");
     return (await listScheduledPosts(context.userId)) as unknown as Post[];
   });
 
 export const publishNow = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) => z.object({ postId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const W = await import("./neon/writes.server");
@@ -185,7 +185,7 @@ export const publishNow = createServerFn({ method: "POST" })
   });
 
 export const cancelScheduledPost = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) => z.object({ postId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const W = await import("./neon/writes.server");
@@ -194,7 +194,7 @@ export const cancelScheduledPost = createServerFn({ method: "POST" })
   });
 
 export const updateScheduledPost = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .validator((input) =>
     z
       .object({
