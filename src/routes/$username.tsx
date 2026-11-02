@@ -15,6 +15,7 @@ import { recordProfileVisit } from "@/lib/analytics.functions";
 import { useRelationshipState } from "@/components/profile/privacy-menu";
 
 export const Route = createFileRoute("/$username")({
+  staticData: { sitemap: true },
   head: () => ({
     meta: [
       { title: "Profile / DeepSocial" },

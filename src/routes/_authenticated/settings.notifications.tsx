@@ -11,6 +11,7 @@ import {
 } from "@/lib/notifications.functions";
 
 export const Route = createFileRoute("/_authenticated/settings/notifications")({
+  staticData: { sitemap: false },
   head: () => ({
     meta: [
       { title: "Notification settings / DeepSocial" },

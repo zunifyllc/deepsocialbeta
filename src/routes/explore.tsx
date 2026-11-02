@@ -21,6 +21,7 @@ const exploreQueryOptions = (hashtag: string) => ({
 });
 
 export const Route = createFileRoute("/explore")({
+  staticData: { sitemap: true },
   validateSearch: zodValidator(searchSchema),
   loaderDeps: ({ search }) => ({ hashtag: search.hashtag }),
   head: () => ({

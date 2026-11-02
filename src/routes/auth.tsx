@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
 
 export const Route = createFileRoute("/auth")({
+  staticData: { sitemap: false },
   ssr: false,
   beforeLoad: async () => {
     const { data } = await authClient.getSession();
