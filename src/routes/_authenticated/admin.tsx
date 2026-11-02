@@ -11,6 +11,7 @@ import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { getAllUsers, getMyAdminStatus, unverifyUser, verifyUser } from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/_authenticated/admin")({
+  staticData: { sitemap: false },
   head: () => ({
     meta: [
       { title: "Admin · Verification — DeepSocial" },

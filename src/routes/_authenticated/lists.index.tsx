@@ -13,6 +13,7 @@ const listsQueryOptions = () => ({
 });
 
 export const Route = createFileRoute("/_authenticated/lists/")({
+  staticData: { sitemap: false },
   head: () => ({
     meta: [
       { title: "Your Lists / DeepSocial" },

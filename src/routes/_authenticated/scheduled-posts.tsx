@@ -28,6 +28,7 @@ import {
 import { formatScheduleTime } from "@/lib/schedule-helpers";
 
 export const Route = createFileRoute("/_authenticated/scheduled-posts")({
+  staticData: { sitemap: false },
   head: () => ({
     meta: [
       { title: "Scheduled posts / DeepSocial" },

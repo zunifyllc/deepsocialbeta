@@ -19,6 +19,7 @@ import type { TimeRange } from "@/lib/analytics-helpers";
 import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/_authenticated/analytics/profile/$username")({
+  staticData: { sitemap: false },
   head: () => ({
     meta: [
       { title: "Profile analytics / DeepSocial" },

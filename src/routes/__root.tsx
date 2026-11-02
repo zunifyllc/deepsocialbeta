@@ -76,6 +76,7 @@ function ErrorComponent({ error, reset }: { error: unknown; reset?: () => void }
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+  staticData: { sitemap: false },
   head: () => ({
     meta: [
       { charSet: "utf-8" },

@@ -21,6 +21,7 @@ const conversationQueryOptions = (conversationId: string) => ({
 });
 
 export const Route = createFileRoute("/_authenticated/messages/$conversationId")({
+  staticData: { sitemap: false },
   head: () => ({
     meta: [
       { title: "Conversation / DeepSocial" },

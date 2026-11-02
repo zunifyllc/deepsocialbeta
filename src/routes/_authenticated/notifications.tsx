@@ -25,6 +25,7 @@ const TABS: { value: Filter; label: string }[] = [
 ];
 
 export const Route = createFileRoute("/_authenticated/notifications")({
+  staticData: { sitemap: false },
   head: () => ({
     meta: [
       { title: "Notifications / DeepSocial" },

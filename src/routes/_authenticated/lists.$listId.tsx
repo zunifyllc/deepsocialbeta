@@ -21,6 +21,7 @@ const listFeedQueryOptions = (listId: string) => ({
 });
 
 export const Route = createFileRoute("/_authenticated/lists/$listId")({
+  staticData: { sitemap: false },
   head: () => ({
     meta: [
       { title: "List timeline / DeepSocial" },

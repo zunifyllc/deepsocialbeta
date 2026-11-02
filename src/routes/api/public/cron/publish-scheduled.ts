@@ -29,5 +29,6 @@ async function run(request: Request) {
 }
 
 export const Route = createFileRoute("/api/public/cron/publish-scheduled")({
+  staticData: { sitemap: false },
   server: { handlers: { GET: ({ request }) => run(request), POST: ({ request }) => run(request) } },
 });

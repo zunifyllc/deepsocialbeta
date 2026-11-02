@@ -20,6 +20,7 @@ import { getPostAnalytics } from "@/lib/analytics.functions";
 import type { TimeRange } from "@/lib/analytics-helpers";
 
 export const Route = createFileRoute("/_authenticated/analytics/post/$postId")({
+  staticData: { sitemap: false },
   head: () => ({
     meta: [
       { title: "Post analytics / DeepSocial" },

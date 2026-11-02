@@ -5,8 +5,15 @@ import { verifyPassword } from "better-auth/crypto";
 import { Pool } from "@neondatabase/serverless";
 import bcrypt from "bcryptjs";
 import { getDatabaseUrl } from "@/lib/neon.server";
+import { SITE_URL } from "@/lib/site";
 
-const ALLOWED_HOSTS = ["localhost:*", "*.lovable.app", "*.lovableproject.com", "*.vercel.app"];
+const ALLOWED_HOSTS = [
+  "localhost:*",
+  "*.lovable.app",
+  "*.lovableproject.com",
+  "*.vercel.app",
+  "deepsocial.zunify.site",
+];
 
 function sanitizeUsername(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 15);
@@ -44,6 +51,7 @@ function build() {
       "https://*.lovable.app",
       "https://*.lovableproject.com",
       "https://*.vercel.app",
+      SITE_URL,
       ...(process.env["BETTER_AUTH_URL"] ? [process.env["BETTER_AUTH_URL"]] : []),
     ],
     emailAndPassword: {

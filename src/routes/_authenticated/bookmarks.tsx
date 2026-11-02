@@ -29,6 +29,7 @@ import { deletePost } from "@/lib/posts.functions";
 type Selection = { scope: "all" } | { scope: "unsorted" } | { scope: "collection"; id: string; name: string };
 
 export const Route = createFileRoute("/_authenticated/bookmarks")({
+  staticData: { sitemap: false },
   head: () => ({
     meta: [
       { title: "Bookmarks / DeepSocial" },

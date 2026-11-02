@@ -14,6 +14,7 @@ import {
 } from "@/lib/privacy.functions";
 
 export const Route = createFileRoute("/_authenticated/settings/privacy")({
+  staticData: { sitemap: false },
   head: () => ({
     meta: [
       { title: "Privacy: mute & block / DeepSocial" },

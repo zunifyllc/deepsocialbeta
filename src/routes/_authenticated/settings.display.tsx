@@ -11,6 +11,7 @@ import { ACCENT_PRESETS, isHexColor, useTheme, type ThemeMode } from "@/hooks/us
 import { updateProfile } from "@/lib/profiles.functions";
 
 export const Route = createFileRoute("/_authenticated/settings/display")({
+  staticData: { sitemap: false },
   head: () => ({
     meta: [
       { title: "Display settings / DeepSocial" },

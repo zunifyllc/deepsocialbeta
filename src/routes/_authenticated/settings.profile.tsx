@@ -13,6 +13,7 @@ import { updateProfile, getCurrentProfile, type Profile } from "@/lib/profiles.f
 import { useServerFn } from "@tanstack/react-start";
 
 export const Route = createFileRoute("/_authenticated/settings/profile")({
+  staticData: { sitemap: false },
   head: () => ({
     meta: [
       { title: "Edit profile / DeepSocial" },

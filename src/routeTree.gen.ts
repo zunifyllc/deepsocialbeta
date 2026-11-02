@@ -15,6 +15,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ExploreRouteImport } from './routes/explore'
 import { Route as SearchRouteImport } from './routes/search'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedBookmarksRouteImport } from './routes/_authenticated/bookmarks'
 import { Route as AuthenticatedHomeRouteImport } from './routes/_authenticated/home'
@@ -62,6 +63,11 @@ const ExploreRoute = ExploreRouteImport.update({
 const SearchRoute = SearchRouteImport.update({
   id: '/search',
   path: '/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
@@ -178,6 +184,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/explore': typeof ExploreRoute
   '/search': typeof SearchRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/bookmarks': typeof AuthenticatedBookmarksRoute
   '/home': typeof AuthenticatedHomeRoute
@@ -204,6 +211,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/explore': typeof ExploreRoute
   '/search': typeof SearchRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/bookmarks': typeof AuthenticatedBookmarksRoute
   '/home': typeof AuthenticatedHomeRoute
@@ -231,6 +239,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/explore': typeof ExploreRoute
   '/search': typeof SearchRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/bookmarks': typeof AuthenticatedBookmarksRoute
   '/_authenticated/home': typeof AuthenticatedHomeRoute
@@ -259,6 +268,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/explore'
     | '/search'
+    | '/sitemap.xml'
     | '/admin'
     | '/bookmarks'
     | '/home'
@@ -285,6 +295,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/explore'
     | '/search'
+    | '/sitemap.xml'
     | '/admin'
     | '/bookmarks'
     | '/home'
@@ -311,6 +322,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/explore'
     | '/search'
+    | '/sitemap.xml'
     | '/_authenticated/admin'
     | '/_authenticated/bookmarks'
     | '/_authenticated/home'
@@ -339,6 +351,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   ExploreRoute: typeof ExploreRoute
   SearchRoute: typeof SearchRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   PostPostIdRoute: typeof PostPostIdRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiPublicCronPublishScheduledRoute: typeof ApiPublicCronPublishScheduledRoute
@@ -386,6 +399,13 @@ declare module '@tanstack/react-router' {
       path: '/search'
       fullPath: '/search'
       preLoaderRoute: typeof SearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin': {
@@ -586,6 +606,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   ExploreRoute: ExploreRoute,
   SearchRoute: SearchRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   PostPostIdRoute: PostPostIdRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiPublicCronPublishScheduledRoute: ApiPublicCronPublishScheduledRoute,

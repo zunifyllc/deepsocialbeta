@@ -12,6 +12,7 @@ import { getPost, getReplies, deletePost } from "@/lib/posts.functions";
 import { useServerFn } from "@tanstack/react-start";
 
 export const Route = createFileRoute("/post/$postId")({
+  staticData: { sitemap: true },
   head: () => ({
     meta: [
       { title: "Post / DeepSocial" },

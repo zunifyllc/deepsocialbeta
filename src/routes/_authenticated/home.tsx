@@ -8,6 +8,7 @@ import { getFeed, deletePost } from "@/lib/posts.functions";
 import { useServerFn } from "@tanstack/react-start";
 
 export const Route = createFileRoute("/_authenticated/home")({
+  staticData: { sitemap: false },
   head: () => ({
     meta: [
       { title: "Home / DeepSocial" },
