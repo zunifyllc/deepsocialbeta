@@ -6,7 +6,13 @@ import { Pool } from "@neondatabase/serverless";
 import bcrypt from "bcryptjs";
 import { getDatabaseUrl } from "@/lib/neon.server";
 
-const ALLOWED_HOSTS = ["localhost:*", "*.lovable.app", "*.lovableproject.com", "*.vercel.app"];
+const ALLOWED_HOSTS = [
+  "localhost:*",
+  "*.lovable.app",
+  "*.lovableproject.com",
+  "*.vercel.app",
+  "deepsocial.zunify.site",
+];
 
 function sanitizeUsername(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 15);
