@@ -1,19 +1,8 @@
-// Server-only Better Auth instance backed by Neon. Auth user ids are UUIDs and
-// equal profiles.id. Built lazily so secrets are read at request time.
-import { betterAuth } from "better-auth";
-import { verifyPassword } from "better-auth/crypto";
-import { Pool } from "@neondatabase/serverless";
-import bcrypt from "bcryptjs";
-import { getDatabaseUrl } from "@/lib/neon.server";
-import { SITE_URL } from "@/lib/site";
-
-const ALLOWED_HOSTS = [
-  "localhost:*",
-  "*.lovable.app",
-  "*.lovableproject.com",
-  "*.vercel.app",
-  "deepsocial.zunify.site",
-];
+// DeepSocial uses Neon Managed Auth (Better Auth hosted by Neon).
+// This is server-only; auth sessions belong to the Neon preview/production
+// branch's neon_auth schema, while social profiles live in deepsocial.public.
+import { createAuthServer, extractNeonAuthCookies } from "@neondatabase/auth/server";
+import { setCookie } from "@tanstack/react-start/server";
 
 function sanitizeUsername(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 15);
@@ -37,61 +26,69 @@ async function createProfileFor(user: { id: string; name: string; email: string;
   );
 }
 
-function build() {
-  const google =
-    process.env["GOOGLE_CLIENT_ID"] && process.env["GOOGLE_CLIENT_SECRET"]
-      ? { google: { clientId: process.env["GOOGLE_CLIENT_ID"], clientSecret: process.env["GOOGLE_CLIENT_SECRET"] } }
-      : {};
-  return betterAuth({
-    database: new Pool({ connectionString: getDatabaseUrl() }),
-    secret: process.env["BETTER_AUTH_SECRET"],
-    baseURL: { allowedHosts: ALLOWED_HOSTS, fallback: process.env["BETTER_AUTH_URL"] },
-    trustedOrigins: [
-      "http://localhost:*",
-      "https://*.lovable.app",
-      "https://*.lovableproject.com",
-      "https://*.vercel.app",
-      SITE_URL,
-      ...(process.env["BETTER_AUTH_URL"] ? [process.env["BETTER_AUTH_URL"]] : []),
-    ],
-    emailAndPassword: {
-      enabled: true,
-      requireEmailVerification: false,
-      autoSignIn: true,
-      password: {
-        // Imported accounts keep their original bcrypt hashes.
-        verify: async ({ hash, password }) =>
-          hash.startsWith("$2") ? bcrypt.compare(password, hash) : verifyPassword({ hash, password }),
-      },
-    },
-    socialProviders: google,
-    account: { accountLinking: { enabled: true, trustedProviders: ["google"] } },
-    user: { additionalFields: { needsPasswordReset: { type: "boolean", defaultValue: false, input: false } } },
-    databaseHooks: {
-      user: { create: { after: async (user) => createProfileFor(user) } },
-    },
-    advanced: {
-      database: { generateId: () => crypto.randomUUID() },
-      useSecureCookies: true,
-      // The editor preview runs in an iframe, so cookies must be cross-site capable.
-      defaultCookieAttributes: { sameSite: "none", secure: true, partitioned: true },
-    },
-  });
+
+function requiredAuthConfig() {
+  const baseUrl = process.env["NEON_AUTH_BASE_URL"];
+  const cookieSecret = process.env["NEON_AUTH_COOKIE_SECRET"];
+  if (!baseUrl || !cookieSecret || cookieSecret.length < 32) {
+    throw new Error("Missing/invalid Neon Managed Auth server configuration.");
+  }
+  return { baseUrl, cookieSecret };
 }
 
-type Auth = ReturnType<typeof build>;
-let cached: { key: string; auth: Auth } | undefined;
-
-export function getAuth(): Auth {
-  const key = `${getDatabaseUrl()}|${process.env["BETTER_AUTH_SECRET"] ?? ""}|${process.env["GOOGLE_CLIENT_ID"] ?? ""}`;
-  if (!cached || cached.key !== key) cached = { key, auth: build() };
-  return cached.auth;
+function requestOrigin(headers: Headers): string {
+  const origin = headers.get("origin");
+  if (origin) return origin;
+  const referrer = headers.get("referer");
+  if (referrer) {
+    try {
+      return new URL(referrer).origin;
+    } catch {
+      // Fall through to the forwarded host.
+    }
+  }
+  const host = headers.get("x-forwarded-host") ?? headers.get("host");
+  const protocol = headers.get("x-forwarded-proto") ?? "https";
+  return host ? `${protocol}://${host}` : "";
 }
 
-/** The signed-in user's id for a request, or null. */
+/**
+ * Validates the managed Neon Auth session using Neon Auth's signed cookie
+ * toolkit. A client-provided user id is NEVER trusted for server functions.
+ */
 export async function getSessionUserId(headers: Headers): Promise<string | null> {
-  const session = await getAuth().api.getSession({ headers });
-  return session?.user.id ?? null;
+  const { baseUrl, cookieSecret } = requiredAuthConfig();
+  const auth = createAuthServer({
+    baseUrl,
+    cookieSecret,
+    context: () => ({
+      getCookies: () => extractNeonAuthCookies(headers),
+      getHeader: (name: string) => headers.get(name),
+      getOrigin: () => requestOrigin(headers),
+      getFramework: () => "tanstack-start",
+      setCookie: (name, value, options) => {
+        setCookie(name, value, options);
+      },
+    }),
+  });
+
+  const { data, error } = await auth.getSession();
+  if (error || !data?.user) return null;
+  const user = data.user;
+  // Social schema keys are UUIDs, so fail closed for malformed identities.
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user.id)) {
+    return null;
+  }
+  // Managed Auth lives in `neondb.neon_auth` and does not run the old app's
+  // user.create database hook. Provision the corresponding social profile on
+  // the first verified request; never create one from unauthenticated input.
+  await createProfileFor({
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    image: user.image,
+  });
+  return user.id;
 }
 
 export { createProfileFor };
