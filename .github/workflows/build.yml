@@ -23,17 +23,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
 
+      # package-lock.json predates the current package.json and cannot pass npm ci.
+      # bun.lock matches package.json and is DeepSocial's maintained lockfile.
       - name: Install dependencies
-        run: npm ci --no-audit --no-fund
+        run: bun install --frozen-lockfile
 
       - name: Typecheck
-        run: npx tsc --noEmit
+        run: bunx tsc --noEmit
 
       - name: Production build
-        run: npm run build
+        run: bun run build
