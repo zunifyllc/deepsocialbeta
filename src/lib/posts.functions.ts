@@ -53,7 +53,7 @@ const createPostSchema = z.object({
   scheduledAt: z.string().datetime().nullable().optional(),
 });
 
-/** Post reads are served from Neon; mute/block lists still come from Supabase. */
+/** Post reads and mute/block lists are served from Neon. */
 async function readers() {
   const [posts, privacy] = await Promise.all([
     import("./neon/posts.server"),
@@ -74,7 +74,19 @@ export const getFeed = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     const { posts, hidden } = await readers();
-    const opts = { limit: data.limit, hidden, cursor: data.cursor };
+    // Following is scoped to the signed-in user; public discovery remains global.
+    const viewerId =
+      data.type === "following"
+        ? await (await import("./privacy-helpers.server")).getViewerId()
+        : null;
+    if (data.type === "following" && !viewerId) return [] as Post[];
+
+    const opts = {
+      limit: data.limit,
+      hidden,
+      cursor: data.cursor,
+      followingUserId: data.type === "following" ? (viewerId ?? undefined) : undefined,
+    };
     const [plain, reposts] = await Promise.all([
       posts.listFeedPosts(opts),
       posts.listRepostFeedItems(opts),
