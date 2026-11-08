@@ -111,7 +111,7 @@ try{
   await A.page.getByRole('button',{name:'for you',exact:true}).click();
   await sleep(1000);
   assert.equal(await A.page.getByText(liveText,{exact:true}).count(),0,'blocked author remained visible in feed');
-  console.log('PASS: blocked author's post hidden from signed-in feed');
+  console.log("PASS: blocked author's post hidden from signed-in feed");
   console.log('PASS: privacy/scheduled E2E complete');
 } catch(error){
   console.log('FAIL:',error instanceof Error?error.message.slice(0,350):String(error).slice(0,350));
