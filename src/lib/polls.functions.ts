@@ -38,6 +38,12 @@ export const getPollResults = createServerFn({ method: "GET" })
     z.object({ pollId: z.string().uuid(), userId: z.string().uuid().optional() }).parse(input),
   )
   .handler(async ({ data }) => {
-    const { readPollResultsNeon } = await import("./neon/features.server");
-    return readPollResultsNeon(data.pollId, data.userId ?? null);
+    const [{ readPollResultsNeon }, { getViewerId }] = await Promise.all([
+      import("./neon/features.server"),
+      import("./privacy-helpers.server"),
+    ]);
+    // Ignore the legacy client-supplied userId: a caller could pass another
+    // person's UUID to reveal which poll option that person voted for.
+    // The only identity permitted for userVotedOptionId is the verified session.
+    return readPollResultsNeon(data.pollId, await getViewerId());
   });
