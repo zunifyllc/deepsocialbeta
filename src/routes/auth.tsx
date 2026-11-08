@@ -25,9 +25,17 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const router = useRouter();
-  const [mode, setMode] = useState<"signin" | "signup" | "reset">("signin");
+  const [mode, setMode] = useState<"signin" | "signup" | "reset" | "new-password">(() => {
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).has("token")) {
+      return "new-password";
+    }
+    return "signin";
+  });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [resetToken] = useState(() =>
+    typeof window === "undefined" ? "" : (new URLSearchParams(window.location.search).get("token") ?? "")
+  );
   const [username, setUsername] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -42,7 +50,23 @@ function AuthPage() {
 
     try {
       if (mode === "reset") {
-        setMessage("Password reset by email is coming soon. Please contact support for help.");
+        // Neon Managed Auth sends reset mail. Show the same success message for
+        // known and unknown addresses to avoid email enumeration.
+        const { error } = await authClient.requestPasswordReset({
+          email,
+          redirectTo: `${window.location.origin}/auth`,
+        });
+        if (error) throw new Error(error.message ?? "Could not request password reset");
+        setMessage("If the email is registered, you'll receive password reset instructions.");
+      } else if (mode === "new-password") {
+        if (!resetToken) throw new Error("Invalid or missing reset link. Request a new one.");
+        if (password.length < 8) throw new Error("Use a password with at least 8 characters.");
+        const { error } = await authClient.resetPassword({ newPassword: password, token: resetToken });
+        if (error) throw new Error(error.message ?? "Password reset failed");
+        window.history.replaceState(null, "", "/auth");
+        setPassword("");
+        setMode("signin");
+        setMessage("Password updated. You can now sign in.");
       } else if (mode === "signup") {
         const { error } = await authClient.signUp.email({ email, password, name: username || email.split("@")[0]! });
         if (error) throw new Error(error.message ?? "Sign up failed");
@@ -125,7 +149,7 @@ function AuthPage() {
 
           {mode !== "reset" && (
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{mode === "new-password" ? "New password" : "Password"}</Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -133,6 +157,8 @@ function AuthPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
+                  autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                  minLength={mode === "new-password" || mode === "signup" ? 8 : undefined}
                   required
                   className="rounded-md border-border bg-background pr-10"
                 />
@@ -161,7 +187,9 @@ function AuthPage() {
               ? "Sign in"
               : mode === "signup"
               ? "Create account"
-              : "Send reset link"}
+              : mode === "reset"
+              ? "Send reset link"
+              : "Update password"}
           </Button>
         </form>
 
