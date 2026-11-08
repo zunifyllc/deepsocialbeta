@@ -1,4 +1,9 @@
-import { createAuthClient } from "better-auth/react";
+import { createAuthClient } from "@neondatabase/auth";
+import { BetterAuthReactAdapter } from "@neondatabase/auth/react/adapters";
 
-/** Browser auth client; talks to /api/auth on the same origin. */
-export const authClient = createAuthClient();
+// The SDK defaults to the same-origin /api/auth proxy when baseURL is omitted,
+// exactly as @neondatabase/auth/next does. Cookies never depend on third-party
+// browser storage; the TanStack Start server proxies to the Neon Auth branch.
+export const authClient = createAuthClient(undefined as unknown as string, {
+  adapter: BetterAuthReactAdapter(),
+});
