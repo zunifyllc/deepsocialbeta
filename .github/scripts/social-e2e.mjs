@@ -95,7 +95,7 @@ try {
   await A.page.getByRole('button', { name: 'Following', exact: true }).click();
   const post = postArticle(A.page, sharedText);
   await post.waitFor({ timeout: 35000 });
-  console.log('PASS: followed user's post visible in Following feed');
+  console.log("PASS: followed user post visible in Following feed");
 
   const like = post.getByTestId('like-button');
   await like.click();
