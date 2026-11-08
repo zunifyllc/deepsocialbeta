@@ -38,7 +38,7 @@ jobs:
               ]);
               if(health.status === 200 && login.status === 200) {
                 const html = await login.text();
-                const assets = [...new Set([...html.matchAll(/rel="modulepreload" href="(\\/assets\\/[^"]+\\.js)"/g)].map(x=>x[1]))].slice(0,30);
+                const assets = [...new Set([...html.matchAll(new RegExp('rel="modulepreload" href="(/assets/[^"]+[.]js)"','g'))].map(x=>x[1]))].slice(0,30);
                 if(assets.length >= 5) {
                   const codes = await Promise.all(assets.map(async path =>
                     (await fetch(base+path,{redirect:'manual'})).status
