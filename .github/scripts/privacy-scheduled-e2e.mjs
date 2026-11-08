@@ -88,6 +88,8 @@ try{
     if(msg.type()==='error')console.log('Preview browser error:',msg.text().slice(0,180));
   });
   await A.page.goto(base+'/'+B.username,{waitUntil:'domcontentloaded'});
+  // SSR button can be clickable before its React handler hydrates.
+  await sleep(1400);
   await A.page.getByTestId('message-button').click();
   try{
     await A.page.waitForURL(/\/messages\/[0-9a-f-]+/,{timeout:15000});
@@ -108,6 +110,7 @@ try{
   console.log('PASS: DM works before block');
 
   await B.page.goto(base+'/'+A.username,{waitUntil:'domcontentloaded'});
+  await sleep(1200);
   await B.page.locator('main').getByRole('button',{name:'More options'}).click();
   await B.page.getByRole('menuitem',{name:'Block @'+A.username}).click();
   await B.page.getByRole('alertdialog').getByRole('button',{name:'Block',exact:true}).click();
