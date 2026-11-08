@@ -46,10 +46,28 @@ jobs:
           const context = await browser.newContext({viewport:{width:1280,height:800},ignoreHTTPSErrors:false});
           const page = await context.newPage();
           let lastPageError = '';
+          const failedAssets = [];
           page.on('pageerror', err => lastPageError = String(err.message).slice(0,220));
+          page.on('console', msg => {
+            if (msg.type() === 'error') console.log('Browser console error:', msg.text().slice(0,240));
+          });
+          page.on('response', response => {
+            if (response.url().includes('/assets/') && response.status() >= 300)
+              failedAssets.push({status:response.status(),url:new URL(response.url()).pathname});
+          });
+          page.on('requestfailed', request => {
+            if (request.url().includes('/assets/'))
+              failedAssets.push({requestFailure:request.failure(),url:new URL(request.url()).pathname});
+          });
           try {
             await page.goto(base+'/auth',{waitUntil:'domcontentloaded',timeout:30000});
-            await page.getByRole('button',{name:'Sign up'}).click();
+            await page.waitForTimeout(5000);
+            console.log('Browser rendered URL:', page.url());
+            console.log('Browser title:', await page.title());
+            console.log('Browser body excerpt:', (await page.locator('body').innerText()).slice(0,400));
+            console.log('Browser buttons:', await page.locator('button').count());
+            console.log('Failed assets:',JSON.stringify(failedAssets.slice(0,12)));
+            await page.getByRole('button',{name:'Sign up'}).click({timeout:10000});
             await page.locator('#username').fill(username);
             await page.locator('#email').fill(email);
             await page.locator('#password').fill(password);
