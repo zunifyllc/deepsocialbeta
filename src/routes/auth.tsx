@@ -101,23 +101,28 @@ function AuthPage() {
           <p className="mt-2 text-muted-foreground">Join today.</p>
         </div>
 
-        <Button
-          type="button"
-          onClick={handleGoogle}
-          variant="outline"
-          className="w-full rounded-full border-border bg-transparent font-bold text-foreground hover:bg-accent"
-        >
-          Sign in with Google
-        </Button>
-
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-border" />
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="bg-background px-2 text-muted-foreground">or</span>
-          </div>
-        </div>
+        {(mode === "signin" || mode === "signup") && (
+          <>
+            <Button
+              type="button"
+              onClick={handleGoogle}
+              variant="outline"
+              className="w-full rounded-full border-border bg-transparent font-bold text-foreground hover:bg-accent"
+            >
+              Sign in with Google
+            </Button>
+    
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="bg-background px-2 text-muted-foreground">or</span>
+              </div>
+            </div>
+    
+          </>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {mode === "signup" && (
@@ -134,18 +139,21 @@ function AuthPage() {
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              required
-              className="rounded-md border-border bg-background"
-            />
-          </div>
+          {mode !== "new-password" && (
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                autoComplete="email"
+                required
+                className="rounded-md border-border bg-background"
+              />
+            </div>
+          )}
 
           {mode !== "reset" && (
             <div className="space-y-2">
