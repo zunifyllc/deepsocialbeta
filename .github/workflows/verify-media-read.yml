@@ -1,0 +1,18 @@
+name: Verify protected media reads
+on:
+  pull_request:
+    paths: [src/lib/storage.functions.ts, .github/workflows/verify-media-read.yml]
+  push:
+    branches: [fix/media-read-authorization]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bunx tsc --noEmit
+      - run: NITRO_PRESET=vercel bun run build
