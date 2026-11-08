@@ -127,7 +127,10 @@ export async function listMessages(userId: string, conversationId: string) {
 // ----------------------------------------------------------------- polls ---
 export async function readPollResultsNeon(pollId: string, userId: string | null): Promise<PollResults> {
   const poll = await one<{ id: string; post_id: string; created_at: string; duration: string | null }>(
-    `select id, post_id, created_at, duration::text as duration from polls where id = $1::uuid`,
+    `select pl.id, pl.post_id, pl.created_at, pl.duration::text as duration
+     from polls pl
+     join posts p on p.id = pl.post_id
+     where pl.id = $1::uuid and p.status = 'published'`,
     [pollId],
   );
   if (!poll) throw new Error("Poll not found");
