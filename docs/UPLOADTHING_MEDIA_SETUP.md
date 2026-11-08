@@ -28,10 +28,23 @@ review and before enabling Production image uploads.
 ## Required UploadThing credential
 
 Create an UploadThing app and copy its **v7 token** from its dashboard's
-**API Keys → V7** area. In Vercel project `deepsocialbeta`, set
-`UPLOADTHING_TOKEN` as an **encrypted server-side Preview environment
-variable**. Do not commit or paste the token into repository files, issues,
-PR comments, or `VITE_*` variables. Redeploy Preview after setting it.
+**API Keys → V7** area. This is a **base64-encoded JSON token** with the
+required fields `apiKey`, `appId`, and `regions`; the old `sk_live_...`
+API secret is **not** a V7 token and will fail on upload.
+
+In Vercel project `deepsocialbeta` → Settings → Environment Variables,
+**replace** `UPLOADTHING_TOKEN` with the entire **API Keys → V7** token
+and make sure its only target is **Preview** (not Production). Do not commit
+or paste the token into repository files, issues, PR comments, or
+`VITE_*` variables. Redeploy Preview after updating it.
+
+**Observed Preview QA on 2026-11-08:** a real browser signed up, created
+a profile and posted text successfully; the UploadThing POST returned 500
+with `Invalid token. A token is a base64 encoded JSON object matching
+{ apiKey: string, appId: string, regions: string[] }`. Server code now
+detects invalid token shapes up front and returns HTTP 503 instead of
+misleadingly reporting GET health success. Retest real uploads after the
+token is corrected.
 
 Without this token, the upload API returns HTTP 503 and text-only posting
 continues to work. Token configuration is not yet complete.
