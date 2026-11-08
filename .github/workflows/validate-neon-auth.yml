@@ -13,5 +13,6 @@ jobs:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile --ignore-scripts
-      - run: bunx tsc --noEmit
+      # Vite generates TanStack Router's routeTree.gen.ts for newly added routes.
       - run: NITRO_PRESET=vercel bun run build
+      - run: bunx tsc --noEmit
