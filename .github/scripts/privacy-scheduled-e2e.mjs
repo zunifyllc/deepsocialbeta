@@ -90,7 +90,7 @@ try{
   await A.page.goto(base+'/'+B.username,{waitUntil:'domcontentloaded'});
   await A.page.getByTestId('message-button').click();
   try{
-    await A.page.waitForURL(/\\/messages\\/[0-9a-f-]+/,{timeout:15000});
+    await A.page.waitForURL(/\/messages\/[0-9a-f-]+/,{timeout:15000});
   }catch(error){
     console.log('DM startup diagnostics:',JSON.stringify({
       currentPath:new URL(A.page.url()).pathname,
