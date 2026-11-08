@@ -348,11 +348,17 @@ export async function deletePoll(userId: string, pollId: string) {
 }
 
 export async function votePoll(userId: string, pollId: string, optionId: string) {
-  const poll = await one<{ created_at: string; duration: string | null; post_id: string }>(
-    `select created_at, duration::text as duration, post_id from polls where id = $1::uuid`,
+  const poll = await one<{ created_at: string; duration: string | null; post_id: string; author_id: string }>(
+    `select pl.created_at, pl.duration::text as duration, pl.post_id, p.author_id
+     from polls pl join posts p on p.id = pl.post_id
+     where pl.id = $1::uuid and p.status = 'published'`,
     [pollId],
   );
   if (!poll) throw new Error("Poll not found");
+  if (poll.author_id !== userId) {
+    const { assertNotBlocked } = await import("../privacy-helpers.server");
+    await assertNotBlocked(userId, poll.author_id);
+  }
   if (isPollExpired(poll.created_at, poll.duration)) throw new Error("This poll has closed");
   const option = await one(`select 1 from poll_options where id = $1::uuid and poll_id = $2::uuid`, [optionId, pollId]);
   if (!option) throw new Error("Invalid poll option");
