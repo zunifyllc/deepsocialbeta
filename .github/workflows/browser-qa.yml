@@ -1,0 +1,118 @@
+name: One-time isolated Preview browser and media E2E
+on:
+  push:
+    branches: [test/deepsocial-preview-e2e]
+    paths: [.github/workflows/browser-qa.yml]
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install isolated browser test dependency
+        run: |
+          bun install --frozen-lockfile --ignore-scripts
+          bun add --dev playwright@1.56.1 --ignore-scripts
+          bunx playwright install --with-deps chromium
+      - name: Preview signup, text post, image post, avatar and banner
+        env:
+          TARGET_ORIGIN: https://deepsocialbeta-a09fpadxi-zunifyllc.vercel.app
+        run: |
+          node --input-type=module <<'NODE'
+          import { chromium } from 'playwright';
+          import { randomBytes } from 'node:crypto';
+          import assert from 'node:assert/strict';
+          const base = process.env.TARGET_ORIGIN;
+          const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+          // Wait while the temporary isolated deployment's access is enabled.
+          let reachable = false;
+          for(let i=0;i<120;i++) {
+            try {
+              const res = await fetch(base + '/api/auth/ok', { redirect:'manual' });
+              if(res.status === 200) { reachable=true; break; }
+            } catch {}
+            await sleep(1000);
+          }
+          if(!reachable) throw new Error('Isolated Preview test access unavailable; no users were created');
+          console.log('PASS isolated Preview access');
+
+          const email = `ui-e2e-${process.env.GITHUB_RUN_ID}-${randomBytes(4).toString('hex')}@example.com`;
+          const password = 'T9!' + randomBytes(24).toString('base64url');
+          const username = 'qa' + randomBytes(6).toString('hex');
+          const browser = await chromium.launch({headless:true});
+          const context = await browser.newContext({viewport:{width:1280,height:800},ignoreHTTPSErrors:false});
+          const page = await context.newPage();
+          let lastPageError = '';
+          page.on('pageerror', err => lastPageError = String(err.message).slice(0,220));
+          try {
+            await page.goto(base+'/auth',{waitUntil:'domcontentloaded',timeout:30000});
+            await page.getByRole('button',{name:'Sign up'}).click();
+            await page.locator('#username').fill(username);
+            await page.locator('#email').fill(email);
+            await page.locator('#password').fill(password);
+            await page.getByRole('button',{name:'Create account'}).click();
+            try { await page.waitForURL(/\/home(?:[?#]|$)/,{timeout:40000}); }
+            catch(e) {
+              const errors = await page.locator('p.text-destructive').allTextContents();
+              console.log('UI signup did not navigate; visible form errors:',JSON.stringify(errors).slice(0,240));
+              throw e;
+            }
+            console.log('PASS browser signup navigated home');
+
+            const composer = page.getByTestId('post-composer-textarea');
+            await composer.waitFor({state:'visible',timeout:40000});
+            console.log('PASS profile provisioned and composer visible');
+            const text = 'DeepSocial isolated Preview QA post ' + randomBytes(5).toString('hex');
+            await composer.fill(text);
+            await page.getByTestId('post-composer-submit').click();
+            await page.getByText(text,{exact:true}).first().waitFor({state:'visible',timeout:40000});
+            console.log('PASS text-only post published');
+
+            // 1x1 PNG (real PNG bytes) uploaded directly to UploadThing.
+            const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y/tLJYAAAAASUVORK5CYII=', 'base64');
+            const files = page.locator('input[type=file]');
+            await files.first().setInputFiles({ name:'deepsocial-preview.png',mimeType:'image/png',buffer:png });
+            // Composer disables publishing while UploadThing uploads.
+            await page.getByTestId('post-composer-submit').waitFor({state:'visible',timeout:30000});
+            let uploadError='';
+            for(let i=0;i<100;i++) {
+              const errors=await page.locator('text=/upload failed/i').allTextContents();
+              if(errors.length) { uploadError=errors.join('; ').slice(0,240); break; }
+              const ready=await page.getByTestId('post-composer-submit').isEnabled();
+              const preview=await page.locator('img[alt="Attached image preview"]').count();
+              if(ready && preview) break;
+              await sleep(400);
+            }
+            if(uploadError) throw new Error('UploadThing image upload failed: '+uploadError);
+            if(!(await page.getByTestId('post-composer-submit').isEnabled())) throw new Error('Image upload did not finish');
+            const imageText='DeepSocial Preview image ' + randomBytes(5).toString('hex');
+            await composer.fill(imageText);
+            await page.getByTestId('post-composer-submit').click();
+            await page.getByText(imageText,{exact:true}).first().waitFor({state:'visible',timeout:40000});
+            console.log('PASS UploadThing image post published');
+
+            await page.goto(base+'/settings/profile',{waitUntil:'domcontentloaded',timeout:30000});
+            const profileUploads=page.locator('input[type=file]');
+            await profileUploads.first().waitFor({state:'attached',timeout:30000});
+            assert.equal(await profileUploads.count(),2,'expected avatar+banner file inputs');
+            await profileUploads.nth(1).setInputFiles({name:'preview-avatar.png',mimeType:'image/png',buffer:png});
+            await page.getByText('Uploading...').waitFor({state:'hidden',timeout:60000}).catch(()=>{});
+            console.log('PASS avatar upload UI completed');
+            await profileUploads.nth(0).setInputFiles({name:'preview-banner.png',mimeType:'image/png',buffer:png});
+            await page.getByText('Uploading...').waitFor({state:'hidden',timeout:60000}).catch(()=>{});
+            console.log('PASS banner upload UI completed');
+            await page.getByRole('button',{name:'Save'}).click();
+            await page.getByText('Profile saved.').waitFor({state:'visible',timeout:30000});
+            console.log('PASS avatar/banner profile saved');
+            console.log('PASS full Preview browser + media E2E');
+          } catch(e) {
+            console.log('E2E FAILED at URL:',page.url().replace(/\?.*$/,''));
+            console.log('Page script error:',lastPageError);
+            throw e;
+          } finally {
+            await browser.close();
+          }
+          NODE
