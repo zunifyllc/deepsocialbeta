@@ -1,11 +1,38 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+/**
+ * UploadThing v7 expects a base64-encoded JSON token with an API key, app ID
+ * and region list. Earlier UploadThing secrets (sk_live_...) are incompatible.
+ * Check the FORMAT only; the SDK validates credentials during requests.
+ * Never log the token or decoded payload.
+ */
+function hasV7TokenShape(value: string | undefined): boolean {
+  if (!value || !/^[A-Za-z0-9+/_=-]+$/.test(value)) return false;
+  try {
+    const parsed: unknown = JSON.parse(Buffer.from(value, "base64").toString("utf8"));
+    if (!parsed || typeof parsed !== "object") return false;
+    const token = parsed as Record<string, unknown>;
+    return (
+      typeof token["apiKey"] === "string" &&
+      token["apiKey"].length > 0 &&
+      typeof token["appId"] === "string" &&
+      token["appId"].length > 0 &&
+      Array.isArray(token["regions"]) &&
+      token["regions"].length > 0 &&
+      token["regions"].every((region) => typeof region === "string" && region.length > 0)
+    );
+  } catch {
+    return false;
+  }
+}
+
 async function handle(request: Request): Promise<Response> {
-  // Keep the remaining app functional even before an UploadThing account has
-  // been connected; never expose the server token to the browser.
-  if (!process.env["UPLOADTHING_TOKEN"]) {
+  const token = process.env["UPLOADTHING_TOKEN"];
+  if (!hasV7TokenShape(token)) {
+    // A missing/legacy token must not mislead operators with a healthy GET
+    // file route list and a mysterious 500 only on real upload requests.
     return Response.json(
-      { error: "Media uploads are not configured yet" },
+      { error: "Media uploads are not configured. Add an UploadThing API Keys > V7 token to Vercel Preview." },
       { status: 503, headers: { "Cache-Control": "no-store" } },
     );
   }
