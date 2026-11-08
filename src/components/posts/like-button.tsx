@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Heart } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { toggleLike, getLikeStatus } from "@/lib/likes.functions";
@@ -17,11 +17,26 @@ export function LikeButton({ postId, initialLikes }: LikeButtonProps) {
   const toggle = useServerFn(toggleLike);
   const getStatus = useServerFn(getLikeStatus);
 
-  // Load initial status once when user is available
-  useState(() => {
-    if (!user) return;
-    getStatus({ data: { postId } }).then((res) => setLiked(res.liked));
-  });
+  // Fetch the viewer-specific like state after mount and when the user/post
+  // changes. Never call a state setter from a useState initializer: React may
+  // still be rendering and this causes inconsistent hydrated like buttons.
+  useEffect(() => {
+    let active = true;
+    if (!user) {
+      setLiked(false);
+      return () => { active = false; };
+    }
+    getStatus({ data: { postId } })
+      .then((result) => {
+        if (active) setLiked(result.liked);
+      })
+      .catch(() => {
+        if (active) setLiked(false);
+      });
+    return () => { active = false; };
+  }, [user?.id, postId, getStatus]);
+
+  useEffect(() => { setLikes(initialLikes); }, [initialLikes, postId]);
 
   const handleClick = async (e: React.MouseEvent) => {
     e.preventDefault();
