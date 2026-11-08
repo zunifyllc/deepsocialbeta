@@ -86,3 +86,41 @@ export const signMediaUrls = createServerFn({ method: "POST" })
       .filter((u) => u.path && u.signedUrl)
       .map((u) => ({ path: u.path as string, signedUrl: u.signedUrl as string }));
   });
+
+
+/** Delete only UploadThing objects registered to the authenticated actor.
+ * Never infer ownership from a URL or permit deleting media already in use.
+ */
+export const deleteOwnUploadThingMedia = createServerFn({ method: "POST" })
+  .middleware([requireAuth])
+  .validator((input) => z.object({ url: z.string().url().max(2048) }).parse(input))
+  .handler(async ({ data, context }) => {
+    const [{ one, q }, { getUploadThingApi }] = await Promise.all([
+      import("./neon/core.server"),
+      import("./uploadthing.server"),
+    ]);
+    const asset = await one<{ file_key: string }>(
+      `select file_key from public.media_assets
+       where owner_id = $1::uuid and public_url = $2`,
+      [context.userId, data.url],
+    );
+    if (!asset) throw new Error("Media file is not owned by this account");
+
+    const referenced = await one<{ in_use: boolean }>(
+      `select (
+        exists(select 1 from public.posts where $1::text = any(media_urls))
+        or exists(select 1 from public.profiles where avatar_url = $1 or banner_url = $1)
+      ) as in_use`,
+      [data.url],
+    );
+    if (referenced?.in_use) {
+      throw new Error("Media already attached to a post or profile");
+    }
+    const deleted = await getUploadThingApi().deleteFiles(asset.file_key);
+    if (!deleted.success) throw new Error("Could not delete uploaded file");
+    await q(
+      `delete from public.media_assets where owner_id = $1::uuid and file_key = $2`,
+      [context.userId, asset.file_key],
+    );
+    return { ok: true };
+  });
