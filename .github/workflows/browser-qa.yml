@@ -19,7 +19,7 @@ jobs:
           bunx playwright install --with-deps chromium
       - name: Preview signup, text post, image post, avatar and banner
         env:
-          TARGET_ORIGIN: https://deepsocialbeta-a09fpadxi-zunifyllc.vercel.app
+          TARGET_ORIGIN: https://deepsocialbeta-git-feat-uploadthing-media-zunifyllc.vercel.app
         run: |
           node --input-type=module <<'NODE'
           import { chromium } from 'playwright';
