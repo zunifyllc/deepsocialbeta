@@ -1,6 +1,6 @@
 // Neon is the primary and only database for app data writes. Every write
 // lives here; multi-table writes run inside one transaction.
-// Auth stays on the old backend, so auth user ids are profiles.id.
+// Neon Managed Auth user ids match profiles.id (both UUIDs).
 import type { PoolClient } from "@neondatabase/serverless";
 import { withTransaction } from "@/lib/neon.server";
 import { q, one, type Row } from "./core.server";
@@ -26,8 +26,8 @@ export async function ensureActor(userId: string): Promise<void> {
 }
 
 async function postAuthor(postId: string) {
-  return (await one<{ author_id: string; parent_post_id: string | null }>(
-    `select author_id, parent_post_id from posts where id = $1::uuid`,
+  return (await one<{ author_id: string; parent_post_id: string | null; status: string }>(
+    `select author_id, parent_post_id, status from posts where id = $1::uuid`,
     [postId],
   ));
 }
