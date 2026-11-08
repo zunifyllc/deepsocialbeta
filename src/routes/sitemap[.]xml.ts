@@ -39,7 +39,7 @@ export const Route = createFileRoute("/sitemap.xml")({
 
         // Public profiles -> /$username
         const profileRouteId = routeIdByFullPath(router, "/$username");
-        const profileRoute = profileRouteId ? (router.routesById as Record<string, AnyRoute>)[profileRouteId] : undefined;
+        const profileRoute = profileRouteId ? (router.routesById as unknown as Record<string, AnyRoute>)[profileRouteId] : undefined;
         if (profileRouteId && isSitemapRouteIncluded(profileRoute)) {
           for (let offset = 0; ; offset += pageSize) {
             const rows = await q<{ username: string }>(
@@ -62,7 +62,7 @@ export const Route = createFileRoute("/sitemap.xml")({
 
         // Published posts -> /post/$postId
         const postRouteId = routeIdByFullPath(router, "/post/$postId");
-        const postRoute = postRouteId ? (router.routesById as Record<string, AnyRoute>)[postRouteId] : undefined;
+        const postRoute = postRouteId ? (router.routesById as unknown as Record<string, AnyRoute>)[postRouteId] : undefined;
         if (postRouteId && isSitemapRouteIncluded(postRoute)) {
           for (let offset = 0; ; offset += pageSize) {
             const rows = await q<{ id: string }>(
