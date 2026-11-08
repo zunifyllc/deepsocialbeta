@@ -24,3 +24,7 @@ cd <repository-name>
 npm i
 npm run dev
 ```
+
+## Neon + Vercel deployment
+
+The application now uses Neon PostgreSQL and self-managed Better Auth; Supabase is still used for legacy media storage. See [Neon/Vercel setup](docs/NEON_VERCEL_SETUP.md) before configuring a Preview or Production deployment. Never commit connection strings or service-role keys.
