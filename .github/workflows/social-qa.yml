@@ -4,6 +4,7 @@ on:
     branches: [test/deepsocial-social-e2e]
     paths:
       - .github/workflows/social-qa.yml
+      - .github/scripts/social-e2e.mjs
 permissions:
   contents: read
 jobs:
@@ -13,6 +14,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
+      - name: Check E2E script syntax
+        run: node --check .github/scripts/social-e2e.mjs
       - name: Install temporary browser runner (not committed)
         run: |
           bun install --frozen-lockfile --ignore-scripts
