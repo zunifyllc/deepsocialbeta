@@ -46,24 +46,34 @@ export function Sidebar() {
         </Link>
 
         {items.map((item) => {
-          const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + "/");
-          return (
-            <Link
-              key={item.href}
-              to={item.href}
-              className={`flex items-center gap-4 rounded-full p-3 text-xl transition-colors hover:bg-accent ${
-                isActive ? "font-bold" : "font-medium"
-              }`}
-            >
+          const destination = item.label === "Profile"
+            ? (profile ? `/${profile.username}` : "/settings/profile")
+            : item.href;
+          const isActive = location.pathname === destination || location.pathname.startsWith(destination + "/");
+          const className = `flex items-center gap-4 rounded-full p-3 text-xl transition-colors hover:bg-accent ${
+            isActive ? "font-bold" : "font-medium"
+          }`;
+          const label = (
+            <>
               <item.icon className="h-7 w-7" />
               <span className="hidden lg:inline">{item.label}</span>
-            </Link>
+            </>
           );
+          if (item.label === "Profile") {
+            return profile
+              ? <Link key={item.href} to="/$username" params={{ username: profile.username }} className={className}>{label}</Link>
+              : <Link key={item.href} to="/settings/profile" className={className}>{label}</Link>;
+          }
+          return <Link key={item.href} to={item.href} className={className}>{label}</Link>;
         })}
 
-        <Button className="mt-4 hidden h-12 w-full rounded-full text-lg font-bold lg:flex">Post</Button>
-        <Button size="icon" className="mt-4 flex h-12 w-12 rounded-full lg:hidden">
-          <Feather className="h-5 w-5" />
+        <Button asChild className="mt-4 hidden h-12 w-full rounded-full text-lg font-bold lg:flex">
+          <Link to="/home" hash="compose">Post</Link>
+        </Button>
+        <Button asChild size="icon" className="mt-4 flex h-12 w-12 rounded-full lg:hidden">
+          <Link to="/home" hash="compose" aria-label="Compose post">
+            <Feather className="h-5 w-5" />
+          </Link>
         </Button>
       </div>
 
