@@ -79,9 +79,27 @@ try{
   assert.equal(await A.page.getByText(scheduledText,{exact:true}).count(),0,'scheduled content was visible in public feed');
   console.log('PASS: scheduled post not visible in public feed');
 
+  const badResponses=[];
+  A.page.on('response', response=>{
+    if(response.status()>=400 && new URL(response.url()).origin===base)
+      badResponses.push({status:response.status(),path:new URL(response.url()).pathname});
+  });
+  A.page.on('console', msg=>{
+    if(msg.type()==='error')console.log('Preview browser error:',msg.text().slice(0,180));
+  });
   await A.page.goto(base+'/'+B.username,{waitUntil:'domcontentloaded'});
   await A.page.getByTestId('message-button').click();
-  await A.page.waitForURL(/\/messages\/[0-9a-f-]+/,{timeout:30000});
+  try{
+    await A.page.waitForURL(/\\/messages\\/[0-9a-f-]+/,{timeout:15000});
+  }catch(error){
+    console.log('DM startup diagnostics:',JSON.stringify({
+      currentPath:new URL(A.page.url()).pathname,
+      invalidRequests:badResponses.slice(-6),
+      messageButtonDisabled:await A.page.getByTestId('message-button').isDisabled().catch(()=>null),
+      errors:errors.slice(-4),
+    }));
+    throw error;
+  }
   const chatURL=A.page.url();
   const before='Preview DM before block '+rand();
   await A.page.getByTestId('message-input').fill(before);
