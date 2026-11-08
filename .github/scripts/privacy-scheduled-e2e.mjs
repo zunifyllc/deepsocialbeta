@@ -111,9 +111,10 @@ try{
   await B.page.locator('main').getByRole('button',{name:'More options'}).click();
   await B.page.getByRole('menuitem',{name:'Block @'+A.username}).click();
   await B.page.getByRole('alertdialog').getByRole('button',{name:'Block',exact:true}).click();
-  await B.page.getByText('Blocked @'+A.username).waitFor({timeout:30000});
-  await sleep(1000);
-  console.log('PASS: user B blocked A');
+  // The toast is short-lived and might disappear before Playwright sees it.
+  // Assert the real effect below: the existing DM must reject new messages.
+  await sleep(1100);
+  console.log('PASS: user B submitted block against A');
 
   // Existing DM history remains visible; new messages must be rejected.
   await A.page.goto(chatURL,{waitUntil:'domcontentloaded'});
