@@ -87,8 +87,8 @@ try {
   console.log('PASS: public post visible in For You');
 
   await A.page.goto(base + '/' + B.username, { waitUntil: 'domcontentloaded' });
-  await A.page.getByRole('button', { name: 'Follow', exact: true }).click();
-  await A.page.getByRole('button', { name: 'Following', exact: true }).waitFor({ timeout: 20000 });
+  await A.page.locator('main').getByRole('button', { name: 'Follow', exact: true }).click();
+  await A.page.locator('main').getByRole('button', { name: 'Following', exact: true }).waitFor({ timeout: 20000 });
   console.log('PASS: user A followed user B');
 
   await A.page.goto(base + '/home', { waitUntil: 'domcontentloaded' });
