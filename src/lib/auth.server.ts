@@ -10,20 +10,27 @@ function sanitizeUsername(value: string) {
 
 /** Creates the Neon profile for a new auth user, with the same id. */
 async function createProfileFor(user: { id: string; name: string; email: string; image?: string | null | undefined }) {
-  const { q, one } = await import("@/lib/neon/core.server");
+  const { one } = await import("@/lib/neon/core.server");
   if (await one(`select 1 from profiles where id = $1::uuid`, [user.id])) return;
   const fromName = sanitizeUsername(user.name ?? "");
   let base = /^[a-z0-9_]{3,15}$/.test(fromName) ? fromName : sanitizeUsername(user.email.split("@")[0] ?? "");
   if (base.length < 3) base = `user${base}`.padEnd(4, "0");
-  let username = base;
-  for (let n = 1; await one(`select 1 from profiles where username = $1`, [username]); n++) {
-    username = `${base.slice(0, 15 - String(n).length)}${n}`;
+
+  // Atomic insert protects simultaneous first-page requests from racing on
+  // both profile id and username constraints. A collision between two users
+  // should allocate a suffix, not break sign-in with a database 23505 error.
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const suffix = attempt === 0 ? "" : String(attempt);
+    const username = `${base.slice(0, 15 - suffix.length)}${suffix}`;
+    const inserted = await one<{ id: string }>(
+      `insert into profiles (id, username, display_name, avatar_url)
+       values ($1::uuid, $2, $3, $4)
+       on conflict do nothing returning id`,
+      [user.id, username, user.name || username, user.image ?? null],
+    );
+    if (inserted || await one(`select 1 from profiles where id = $1::uuid`, [user.id])) return;
   }
-  await q(
-    `insert into profiles (id, username, display_name, avatar_url) values ($1::uuid, $2, $3, $4)
-     on conflict (id) do nothing`,
-    [user.id, username, user.name || username, user.image ?? null],
-  );
+  throw new Error("Could not reserve a unique profile username");
 }
 
 
