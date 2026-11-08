@@ -27,17 +27,30 @@ jobs:
           import assert from 'node:assert/strict';
           const base = process.env.TARGET_ORIGIN;
           const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-          // Wait while the temporary isolated deployment's access is enabled.
+          // Vercel may allow /api/auth/ok before static JS chunks become
+          // reachable; a browser without those chunks never hydrates.
           let reachable = false;
-          for(let i=0;i<120;i++) {
+          for(let i=0;i<100;i++) {
             try {
-              const res = await fetch(base + '/api/auth/ok', { redirect:'manual' });
-              if(res.status === 200) { reachable=true; break; }
+              const [health, login] = await Promise.all([
+                fetch(base + '/api/auth/ok', {redirect:'manual'}),
+                fetch(base + '/auth', {redirect:'manual'}),
+              ]);
+              if(health.status === 200 && login.status === 200) {
+                const html = await login.text();
+                const assets = [...new Set([...html.matchAll(/rel="modulepreload" href="(\\/assets\\/[^"]+\\.js)"/g)].map(x=>x[1]))].slice(0,30);
+                if(assets.length >= 5) {
+                  const codes = await Promise.all(assets.map(async path =>
+                    (await fetch(base+path,{redirect:'manual'})).status
+                  ));
+                  if(codes.every(x=>x === 200)) { reachable=true; break; }
+                }
+              }
             } catch {}
-            await sleep(1000);
+            await sleep(1500);
           }
-          if(!reachable) throw new Error('Isolated Preview test access unavailable; no users were created');
-          console.log('PASS isolated Preview access');
+          if(!reachable) throw new Error('Isolated Preview HTML/JS access unavailable; no users were created');
+          console.log('PASS isolated Preview HTML and JS module access');
 
           const email = `ui-e2e-${process.env.GITHUB_RUN_ID}-${randomBytes(4).toString('hex')}@example.com`;
           const password = 'T9!' + randomBytes(24).toString('base64url');
