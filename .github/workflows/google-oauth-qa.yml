@@ -1,0 +1,45 @@
+name: Preview Google OAuth start smoke
+on:
+  push:
+    branches: [test/deepsocial-social-e2e]
+    paths: [.github/workflows/google-oauth-qa.yml]
+permissions:
+  contents: read
+jobs:
+  oauth:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Verify Neon shared Google provider starts OAuth
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          const origin='https://deepsocialbeta-git-test-deepsocial-social-e2e-zunifyllc.vercel.app';
+          const ping=await fetch(origin+'/api/auth/ok',{redirect:'manual'});
+          assert.equal(ping.status,200,'Preview unavailable; no OAuth request sent');
+          const response=await fetch(origin+'/api/auth/sign-in/social',{
+            method:'POST', redirect:'manual',
+            headers:{
+              origin,
+              referer:origin+'/auth',
+              'content-type':'application/json',
+            },
+            body:JSON.stringify({provider:'google',callbackURL:origin+'/home',errorCallbackURL:origin+'/auth'}),
+          });
+          let target=response.headers.get('location');
+          if(response.status===200){
+            let data;
+            try{data=await response.json();}catch{data=null;}
+            target=data?.url??data?.redirect??data?.data?.url??null;
+          }
+          if(!target){
+            console.log('OAuth init HTTP:',response.status,'(no redirect URL)');
+            throw new Error('Google OAuth did not initiate');
+          }
+          const url=new URL(target,origin);
+          // Only report the hostname, never print the OAuth URL/state.
+          console.log('OAuth init HTTP:',response.status,'provider-host:',url.hostname);
+          assert.ok(['https:'].includes(url.protocol),'OAuth target must use HTTPS');
+          assert.ok(url.hostname==='accounts.google.com'||url.hostname.endsWith('.google.com')||url.hostname.includes('neonauth'),'Unexpected Google OAuth redirect host');
+          console.log('PASS: Google OAuth initiation/redirect; final consent sign-in not tested');
+          NODE
