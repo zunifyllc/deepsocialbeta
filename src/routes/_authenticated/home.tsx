@@ -7,6 +7,8 @@ import { PostCard } from "@/components/posts/post-card";
 import { getFeed, deletePost } from "@/lib/posts.functions";
 import { useServerFn } from "@tanstack/react-start";
 
+type FeedTab = "for-you" | "following";
+
 export const Route = createFileRoute("/_authenticated/home")({
   staticData: { sitemap: false },
   head: () => ({
@@ -15,19 +17,19 @@ export const Route = createFileRoute("/_authenticated/home")({
       { name: "description", content: "Your personalized timeline on DeepSocial." },
     ],
   }),
-  loader: ({ context }) => context.queryClient.ensureQueryData(feedQueryOptions()),
+  loader: ({ context }) => context.queryClient.ensureQueryData(feedQueryOptions("following")),
   component: HomePage,
 });
 
-const feedQueryOptions = () => ({
-  queryKey: ["feed"],
-  queryFn: () => getFeed({ data: { type: "following" } }),
+const feedQueryOptions = (type: FeedTab) => ({
+  queryKey: ["feed", type],
+  queryFn: () => getFeed({ data: { type } }),
 });
 
 function HomePage() {
-  const [activeTab, setActiveTab] = useState<"for-you" | "following">("following");
+  const [activeTab, setActiveTab] = useState<FeedTab>("following");
   const queryClient = useQueryClient();
-  const { data: posts } = useSuspenseQuery(feedQueryOptions());
+  const { data: posts } = useSuspenseQuery(feedQueryOptions(activeTab));
   const remove = useServerFn(deletePost);
 
   const handleDelete = async (id: string) => {
@@ -55,7 +57,9 @@ function HomePage() {
         </div>
       </div>
 
-      <PostComposer onSuccess={() => queryClient.invalidateQueries({ queryKey: ["feed"] })} />
+      <div id="compose" className="scroll-mt-20">
+        <PostComposer onSuccess={() => queryClient.invalidateQueries({ queryKey: ["feed"] })} />
+      </div>
 
       <div>
         {posts?.map((post) => (
@@ -69,7 +73,7 @@ function HomePage() {
         {posts?.length === 0 && (
           <div className="p-8 text-center text-muted-foreground">
             <p className="text-xl font-bold">Welcome to your timeline</p>
-            <p className="mt-2">Follow people to see their posts here.</p>
+            <p className="mt-2">{activeTab === "following" ? "Follow people to see their posts here." : "No public posts yet. Be the first to post!"}</p>
           </div>
         )}
       </div>
