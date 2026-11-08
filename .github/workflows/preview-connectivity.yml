@@ -1,0 +1,24 @@
+name: Preview connectivity smoke
+on:
+  push:
+    branches: [feat/neon-managed-auth]
+    paths: [.github/workflows/preview-connectivity.yml]
+permissions:
+  contents: read
+jobs:
+  public-auth-health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check Preview auth endpoint from external GitHub runner
+        run: |
+          code=$(curl --silent --show-error --max-time 20 --location --output /dev/null --write-out '%{http_code}' \
+            https://deepsocialbeta-git-feat-neon-managed-auth-zunifyllc.vercel.app/api/auth/ok)
+          echo "External Preview auth HTTP status: $code"
+          if [ "$code" = 200 ]; then
+            echo "Public Preview can be reached from CI."
+          elif [ "$code" = 401 ] || [ "$code" = 403 ]; then
+            echo "Preview deployment protection enabled; interactive E2E requires authorized browser access."
+          else
+            echo "Preview endpoint needs investigation (HTTP $code)."
+          fi
