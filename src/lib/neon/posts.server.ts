@@ -29,6 +29,7 @@ export interface FeedOptions {
   limit: number;
   cursor?: string | undefined;
   hidden: string[];
+  followingUserId?: string | undefined;
 }
 
 export async function listFeedPosts(opts: FeedOptions): Promise<Row[]> {
@@ -36,8 +37,11 @@ export async function listFeedPosts(opts: FeedOptions): Promise<Row[]> {
     `select ${POST_COLUMNS} ${FROM_POSTS}
      where p.status = 'published' and p.parent_post_id is null and ${NOT_HIDDEN}
        and ($2::timestamptz is null or p.created_at < $2::timestamptz)
+       and ($4::uuid is null or p.author_id = $4::uuid or exists (
+         select 1 from follows f where f.follower_id = $4::uuid and f.following_id = p.author_id
+       ))
      order by p.created_at desc limit $3`,
-    [opts.hidden, opts.cursor ?? null, opts.limit],
+    [opts.hidden, opts.cursor ?? null, opts.limit, opts.followingUserId ?? null],
   );
 }
 
@@ -110,8 +114,12 @@ export async function listRepostFeedItems(opts: RepostFeedOptions): Promise<Row[
        and ($2::timestamptz is null or r.created_at < $2::timestamptz)
        and ($4::uuid is null or r.user_id = $4::uuid)
        and ($5::uuid is null or r.post_id = $5::uuid)
+       and p.status = 'published'
+       and ($6::uuid is null or r.user_id = $6::uuid or exists (
+         select 1 from follows f where f.follower_id = $6::uuid and f.following_id = r.user_id
+       ))
      order by r.created_at desc limit $3`,
-    [opts.hidden, opts.cursor ?? null, opts.limit, opts.userId ?? null, opts.postId ?? null],
+    [opts.hidden, opts.cursor ?? null, opts.limit, opts.userId ?? null, opts.postId ?? null, opts.followingUserId ?? null],
   );
 
   return rows.map((row) => {
