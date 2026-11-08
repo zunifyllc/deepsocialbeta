@@ -82,13 +82,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "DeepSocial" },
-      { name: "description", content: "A full-featured social app built with Lovable Cloud." },
+      { name: "description", content: "DeepSocial — share posts, follow people and join the conversation." },
       { name: "author", content: "Lovable" },
       { property: "og:title", content: "DeepSocial" },
-      { property: "og:description", content: "A full-featured social app built with Lovable Cloud." },
+      { property: "og:description", content: "DeepSocial — share posts, follow people and join the conversation." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:site", content: "@DeepSocial" },
     ],
     links: [
       {

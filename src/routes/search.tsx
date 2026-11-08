@@ -21,7 +21,9 @@ export const Route = createFileRoute("/search")({
   staticData: { sitemap: true },
   validateSearch: zodValidator(searchSchema),
   head: () => ({
+    links: [{ rel: "canonical", href: "https://deepsocial.zunify.site/search" }],
     meta: [
+      { property: "og:url", content: "https://deepsocial.zunify.site/search" },
       { title: "Search / DeepSocial" },
       { name: "description", content: "Search posts and people across DeepSocial." },
       { property: "og:title", content: "Search / DeepSocial" },

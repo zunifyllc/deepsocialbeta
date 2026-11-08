@@ -13,8 +13,10 @@ import { useServerFn } from "@tanstack/react-start";
 
 export const Route = createFileRoute("/post/$postId")({
   staticData: { sitemap: true },
-  head: () => ({
+  head: ({ params }: { params: { postId: string } }) => ({
+    links: [{ rel: "canonical", href: `https://deepsocial.zunify.site/post/${params.postId}` }],
     meta: [
+      { property: "og:url", content: `https://deepsocial.zunify.site/post/${params.postId}` },
       { title: "Post / DeepSocial" },
       { name: "description", content: "View post on DeepSocial." },
       { property: "og:title", content: "Post / DeepSocial" },

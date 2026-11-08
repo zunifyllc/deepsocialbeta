@@ -16,8 +16,10 @@ import { useRelationshipState } from "@/components/profile/privacy-menu";
 
 export const Route = createFileRoute("/$username")({
   staticData: { sitemap: true },
-  head: () => ({
+  head: ({ params }: { params: { username: string } }) => ({
+    links: [{ rel: "canonical", href: `https://deepsocial.zunify.site/${params.username}` }],
     meta: [
+      { property: "og:url", content: `https://deepsocial.zunify.site/${params.username}` },
       { title: "Profile / DeepSocial" },
       { name: "description", content: "View profile on DeepSocial." },
       { property: "og:title", content: "Profile / DeepSocial" },
