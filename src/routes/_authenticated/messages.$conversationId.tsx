@@ -7,12 +7,14 @@ import { ArrowLeft } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { MessageComposer } from "@/components/messages/message-composer";
 import { useAuth } from "@/hooks/use-auth";
-import { supabase } from "@/integrations/supabase/client";
 import { getConversation, getMessages, sendMessage, type Message } from "@/lib/messages.functions";
 
 const messagesQueryOptions = (conversationId: string) => ({
   queryKey: ["messages", conversationId],
   queryFn: () => getMessages({ data: { conversationId } }),
+  // DMs are stored in Neon, not the old Supabase realtime stream.
+  refetchInterval: 5_000,
+  refetchIntervalInBackground: false,
 });
 
 const conversationQueryOptions = (conversationId: string) => ({
@@ -61,34 +63,6 @@ function ConversationPage() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end" });
   }, [messages.length]);
-
-  useEffect(() => {
-    const channel = supabase
-      .channel(`messages:${conversationId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "messages",
-          filter: `conversation_id=eq.${conversationId}`,
-        },
-        (payload) => {
-          const incoming = payload.new as Message;
-          queryClient.setQueryData<Message[]>(["messages", conversationId], (prev) => {
-            const list = prev ?? [];
-            if (list.some((message) => message.id === incoming.id)) return list;
-            return [...list, incoming];
-          });
-          queryClient.invalidateQueries({ queryKey: ["conversations"] });
-        },
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [conversationId, queryClient]);
 
   const handleSend = async (content: string) => {
     const message = await send({ data: { conversationId, content } });
