@@ -20,8 +20,8 @@ jobs:
           import { randomBytes } from 'node:crypto';
           import assert from 'node:assert/strict';
 
-          const base = 'https://deepsocialbeta-git-feat-neon-managed-auth-zunifyllc.vercel.app';
-          assert.match(base, /^https:\/\/deepsocialbeta-git-feat-neon-managed-auth-/);
+          const base = 'https://deepsocialbeta-le8d558h9-zunifyllc.vercel.app';
+          assert.equal(base, "https://deepsocialbeta-le8d558h9-zunifyllc.vercel.app");
           const email = `deepsocial-ci-${process.env.GITHUB_RUN_ID}-${randomBytes(4).toString('hex')}@example.com`;
           const password = `Qa9!${randomBytes(24).toString('base64url')}`;
           const cookies = new Map();
