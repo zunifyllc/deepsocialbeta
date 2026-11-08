@@ -99,6 +99,10 @@ jobs:
 
             // 1x1 PNG (real PNG bytes) uploaded directly to UploadThing.
             const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y/tLJYAAAAASUVORK5CYII=', 'base64');
+            // The submit button also requires non-empty text. Set text BEFORE
+            // waiting for it to re-enable after the upload finishes.
+            const imageText='DeepSocial Preview image ' + randomBytes(5).toString('hex');
+            await composer.fill(imageText);
             const files = page.locator('input[type=file]');
             await files.first().setInputFiles({ name:'deepsocial-preview.png',mimeType:'image/png',buffer:png });
             // Composer disables publishing while UploadThing uploads.
@@ -114,8 +118,6 @@ jobs:
             }
             if(uploadError) throw new Error('UploadThing image upload failed: '+uploadError);
             if(!(await page.getByTestId('post-composer-submit').isEnabled())) throw new Error('Image upload did not finish');
-            const imageText='DeepSocial Preview image ' + randomBytes(5).toString('hex');
-            await composer.fill(imageText);
             await page.getByTestId('post-composer-submit').click();
             await page.getByText(imageText,{exact:true}).first().waitFor({state:'visible',timeout:40000});
             console.log('PASS UploadThing image post published');
