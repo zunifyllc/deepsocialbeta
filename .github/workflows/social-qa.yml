@@ -1,0 +1,24 @@
+name: Two-user DeepSocial social E2E
+on:
+  push:
+    branches: [test/deepsocial-social-e2e]
+    paths:
+      - .github/workflows/social-qa.yml
+permissions:
+  contents: read
+jobs:
+  social:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install temporary browser runner (not committed)
+        run: |
+          bun install --frozen-lockfile --ignore-scripts
+          bun add --dev playwright@1.56.1 --ignore-scripts
+          bunx playwright install --with-deps chromium
+      - name: Two-account social features
+        env:
+          TARGET_ORIGIN: https://deepsocialbeta-git-test-deepsocial-social-e2e-zunifyllc.vercel.app
+        run: node .github/scripts/social-e2e.mjs
