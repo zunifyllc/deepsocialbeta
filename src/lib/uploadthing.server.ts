@@ -9,9 +9,16 @@ type UploadPurpose = "media" | "avatars" | "banners";
 
 function createImageUploader(purpose: UploadPurpose) {
   return f({
-    image: { maxFileSize: "5MB", maxFileCount: 1 },
+    image: { maxFileSize: "8MB", maxFileCount: 1 },
   })
-    .middleware(async ({ req }) => {
+    .middleware(async ({ req, files }) => {
+      // UploadThing accepts power-of-two size literals. Enforce our strict 5MB
+      // product limit and MIME allow-list BEFORE requesting signed upload URLs.
+      const maxBytes = 5 * 1024 * 1024;
+      const allowed = ["image/png", "image/jpeg", "image/gif", "image/webp"];
+      if (files.some((file) => file.size > maxBytes || !allowed.includes(file.type))) {
+        throw new UploadThingError("Only PNG, JPEG, GIF or WebP images up to 5MB are allowed");
+      }
       const { getSessionUserId } = await import("./auth.server");
       const userId = await getSessionUserId(req.headers);
       if (!userId) throw new UploadThingError("Unauthorized");
