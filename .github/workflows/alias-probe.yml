@@ -1,0 +1,29 @@
+name: Preview alias access probe
+on:
+  push:
+    branches: [test/deepsocial-preview-e2e]
+    paths: [.github/workflows/alias-probe.yml]
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Test deployment URL and branch alias without credentials
+        run: |
+          node --input-type=module <<'NODE'
+          const urls=[
+            'https://deepsocialbeta-a09fpadxi-zunifyllc.vercel.app',
+            'https://deepsocialbeta-git-feat-uploadthing-media-zunifyllc.vercel.app',
+          ];
+          for(const url of urls) for(const path of ['/api/auth/ok','/auth','/assets/index-Bczu8I5v.js']){
+            try {
+              const response = await fetch(url+path,{redirect:'manual',headers:{accept:'text/html'}});
+              const redirect=response.headers.get('location');
+              console.log(new URL(url).hostname,path,'HTTP',response.status,redirect?'redirect-host '+new URL(redirect,url).hostname:'');
+            }catch(error){
+              console.log(new URL(url).hostname,path,'network error',String(error.message).slice(0,90));
+            }
+          }
+          NODE
