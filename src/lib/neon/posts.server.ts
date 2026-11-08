@@ -56,7 +56,17 @@ export async function listUserPosts(userId: string, opts: FeedOptions): Promise<
 }
 
 export async function getPostById(postId: string): Promise<Row | null> {
+  // Internal owner-only mutation flows (scheduled-post creation/edit) need to
+  // read drafts. Never expose this reader in a public server function.
   return one(`select ${POST_COLUMNS} ${FROM_POSTS} where p.id = $1::uuid`, [postId]);
+}
+
+/** Public post URL: scheduled posts must not be accessible by guessing UUIDs. */
+export async function getPublishedPostById(postId: string): Promise<Row | null> {
+  return one(
+    `select ${POST_COLUMNS} ${FROM_POSTS} where p.id = $1::uuid and p.status = 'published'`,
+    [postId],
+  );
 }
 
 export async function listReplies(postId: string, hidden: string[]): Promise<Row[]> {
@@ -81,7 +91,7 @@ export async function listLikedPosts(userId: string, limit = 50): Promise<Row[]>
   return q(
     `select ${POST_COLUMNS} ${FROM_POSTS}
      join likes l on l.post_id = p.id
-     where l.user_id = $1::uuid
+     where l.user_id = $1::uuid and p.status = 'published'
      order by l.created_at desc limit $2`,
     [userId, limit],
   );
@@ -90,7 +100,8 @@ export async function listLikedPosts(userId: string, limit = 50): Promise<Row[]>
 export async function getPinnedPost(userId: string): Promise<Row | null> {
   return one(
     `select ${POST_COLUMNS} ${FROM_POSTS}
-     where p.id = (select pinned_post_id from profiles where id = $1::uuid)`,
+     where p.id = (select pinned_post_id from profiles where id = $1::uuid)
+       and p.status = 'published'`,
     [userId],
   );
 }

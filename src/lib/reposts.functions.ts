@@ -27,7 +27,7 @@ export const toggleRepost = createServerFn({ method: "POST" })
     const W = await import("./neon/writes.server");
     await W.ensureActor(context.userId);
     const target = await W.postAuthor(data.postId);
-    if (!target) throw new Error("Post not found");
+    if (!target || target.status !== "published") throw new Error("Post not found");
     if (target.author_id !== context.userId) {
       const { assertNotBlocked } = await import("./privacy-helpers.server");
       await assertNotBlocked(context.userId, target.author_id);
@@ -55,7 +55,11 @@ export const getRepostStatus = createServerFn({ method: "GET" })
 export const getRepostsByPost = createServerFn({ method: "GET" })
   .validator((input) => z.object({ postId: z.string().uuid() }).parse(input))
   .handler(async ({ data }) => {
-    const { listRepostersByPost } = await import("./neon/social.server");
+    const [{ getPublishedPostById }, { listRepostersByPost }] = await Promise.all([
+      import("./neon/posts.server"),
+      import("./neon/social.server"),
+    ]);
+    if (!(await getPublishedPostById(data.postId))) return [] as RepostUser[];
     return (await listRepostersByPost(data.postId)) as unknown as RepostUser[];
   });
 
