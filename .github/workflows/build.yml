@@ -40,6 +40,7 @@ jobs:
       - name: Inspect Vercel auth bundle (diagnostic only)
         env:
           VERCEL: '1'
+          NITRO_PRESET: vercel
         run: |
           bun run build
           echo "Inspecting Vercel auth bundle around reported runtime error"
