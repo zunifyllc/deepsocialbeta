@@ -8,6 +8,9 @@ import { getConversations } from "@/lib/messages.functions";
 const conversationsQueryOptions = () => ({
   queryKey: ["conversations"],
   queryFn: () => getConversations(),
+  // Keep inbox previews current while messages are saved in Neon.
+  refetchInterval: 10_000,
+  refetchIntervalInBackground: false,
 });
 
 export const Route = createFileRoute("/_authenticated/messages/")({
