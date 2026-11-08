@@ -9,6 +9,12 @@ export const toggleBookmark = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const W = await import("./neon/writes.server");
     await W.ensureActor(context.userId);
+    const target = await W.postAuthor(data.postId);
+    if (!target || target.status !== "published") throw new Error("Post not found");
+    if (target.author_id !== context.userId) {
+      const { assertNotBlocked } = await import("./privacy-helpers.server");
+      await assertNotBlocked(context.userId, target.author_id);
+    }
     return W.toggleBookmark(context.userId, data.postId);
   });
 
