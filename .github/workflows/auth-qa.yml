@@ -1,0 +1,102 @@
+name: One-time isolated Preview auth E2E
+on:
+  push:
+    branches: [test/deepsocial-preview-e2e]
+    paths: [.github/workflows/auth-qa.yml]
+permissions:
+  contents: read
+jobs:
+  auth:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Signup, session, profile and login on isolated Preview
+        env:
+          TARGET_ORIGIN: https://deepsocialbeta-a09fpadxi-zunifyllc.vercel.app
+        run: |
+          node --input-type=module <<'NODE'
+          import { randomBytes } from 'node:crypto';
+          import assert from 'node:assert/strict';
+
+          const base = process.env.TARGET_ORIGIN;
+          const email = `e2e-${process.env.GITHUB_RUN_ID}-${randomBytes(6).toString('hex')}@example.com`;
+          const password = `T9!${randomBytes(26).toString('base64url')}`;
+          const cookies = new Map();
+          async function request(path, method = 'GET', payload = undefined) {
+            const cookie = [...cookies].map(([k,v]) => `${k}=${v}`).join('; ');
+            const response = await fetch(base + path, {
+              method, redirect: 'manual',
+              headers: {
+                origin: base, referer: base + '/auth',
+                ...(cookie ? { cookie } : {}),
+                ...(payload === undefined ? {} : { 'content-type': 'application/json' })
+              },
+              ...(payload === undefined ? {} : {body: JSON.stringify(payload)}),
+            });
+            for(const setCookie of response.headers.getSetCookie()) {
+              const pair = setCookie.split(';', 1)[0];
+              const eq = pair.indexOf('=');
+              if(eq < 0) continue;
+              const name = pair.slice(0,eq), val = pair.slice(eq+1);
+              if(/max-age=0/i.test(setCookie)) cookies.delete(name);
+              else cookies.set(name,val);
+            }
+            return response;
+          }
+          async function responseBody(res) {
+            const text = await res.text();
+            try { return JSON.parse(text); } catch { return null; }
+          }
+          function mustEqual(actual, expected, at) {
+            if (actual !== expected) throw new Error(`${at}: expected HTTP ${expected}, got ${actual}`);
+          }
+          console.log('Target: isolated Vercel Preview only');
+          let res = await request('/api/auth/ok');
+          mustEqual(res.status, 200, 'Neon health');
+          res = await request('/api/session-check');
+          mustEqual(res.status, 401, 'signed-out access');
+          console.log('PASS anonymous protected access denied');
+
+          res = await request('/api/auth/sign-up/email', 'POST', { name: 'Preview QA', email, password });
+          if(res.status !== 200) {
+            const body = await responseBody(res);
+            console.log('Signup API status:', res.status, 'error code:', body?.code || body?.error?.code || body?.message?.slice(0,70) || '[no JSON]');
+            throw new Error('Signup did not succeed');
+          }
+          console.log('PASS real managed Neon email sign-up');
+
+          async function verifySession(stage) {
+            const res = await request('/api/auth/get-session');
+            mustEqual(res.status, 200, stage + ' session API');
+            const session = await responseBody(res);
+            assert.match(session?.user?.id??'', /^[0-9a-f]{8}-[0-9a-f-]{27,}$/i, stage + ' user UUID');
+            const guarded = await request('/api/session-check');
+            if(guarded.status !== 200) {
+              const body = await responseBody(guarded);
+              console.log('Guard status:', guarded.status, 'error:', body?.error?.message || body?.error || '[no JSON]');
+              throw new Error(stage + ' protected route could not validate Neon session/profile');
+            }
+            const check = await responseBody(guarded);
+            assert.equal(check?.authenticated, true);
+            console.log('PASS', stage, 'session and Neon profile guard');
+          }
+          await verifySession('signup');
+
+          res = await request('/api/auth/sign-out','POST',{});
+          mustEqual(res.status, 200,'signout');
+          res = await request('/api/auth/get-session');
+          mustEqual(res.status,200,'signed-out session API');
+          assert.equal(await responseBody(res),null,'session not cleared');
+          console.log('PASS signout clears session');
+
+          res = await request('/api/auth/sign-in/email','POST',{email,password});
+          if(res.status !== 200) {
+            const body = await responseBody(res);
+            console.log('Sign-in status:',res.status,'error:',body?.code||body?.message||'[no JSON]');
+            throw new Error('Sign-in did not succeed');
+          }
+          await verifySession('sign-in');
+          const page = await request('/home');
+          console.log('Signed-in home status:', page.status);
+          console.log('PASS Neon Auth round trip');
+          NODE
