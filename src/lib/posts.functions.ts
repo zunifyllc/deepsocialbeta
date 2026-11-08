@@ -98,7 +98,7 @@ export const getPost = createServerFn({ method: "GET" })
   .validator((input) => z.object({ postId: z.string().uuid() }).parse(input))
   .handler(async ({ data }) => {
     const { posts, hidden } = await readers();
-    const found = (await posts.getPostById(data.postId)) as unknown as Post | null;
+    const found = (await posts.getPublishedPostById(data.postId)) as unknown as Post | null;
     if (found?.author && hidden.includes(found.author.id)) return null;
     return found;
   });
@@ -139,8 +139,13 @@ export const createPost = createServerFn({ method: "POST" })
     await W.ensureActor(context.userId);
     if (data.scheduledAt) assertFutureSchedule(data.scheduledAt);
     if (data.parentPostId) {
+      // Never leak scheduled content through early replies/notifications.
+      // Scheduled replies are not supported; only published posts can be
+      // replied to, and the reply must publish immediately.
+      if (data.scheduledAt) throw new Error("Replies cannot be scheduled");
       const parent = await W.postAuthor(data.parentPostId);
-      if (parent && parent.author_id !== context.userId) {
+      if (!parent || parent.status !== "published") throw new Error("Post not found");
+      if (parent.author_id !== context.userId) {
         const { assertNotBlocked } = await import("./privacy-helpers.server");
         await assertNotBlocked(context.userId, parent.author_id);
       }
