@@ -82,7 +82,7 @@ try {
 
   A = await makeUser('a');
   await A.page.goto(base + '/home', { waitUntil: 'domcontentloaded' });
-  await A.page.getByRole('button', { name: 'For you', exact: true }).click();
+  await A.page.getByRole('button', { name: 'for you', exact: true }).click();
   await A.page.getByText(sharedText, { exact: true }).first().waitFor({ timeout: 35000 });
   console.log('PASS: public post visible in For You');
 
@@ -92,7 +92,7 @@ try {
   console.log('PASS: user A followed user B');
 
   await A.page.goto(base + '/home', { waitUntil: 'domcontentloaded' });
-  await A.page.getByRole('button', { name: 'Following', exact: true }).click();
+  await A.page.getByRole('button', { name: 'following', exact: true }).click();
   const post = postArticle(A.page, sharedText);
   await post.waitFor({ timeout: 35000 });
   console.log("PASS: followed user post visible in Following feed");
