@@ -65,6 +65,10 @@ jobs:
             if (msg.type() === 'error') console.log('Browser console error:', msg.text().slice(0,240));
           });
           page.on('response', response => {
+            const responseHost = new URL(response.url()).hostname;
+            if (responseHost.includes('uploadthing') || responseHost.endsWith('.ufs.sh')) {
+              console.log('Upload transfer HTTP:',response.request().method(),response.status(),responseHost);
+            }
             if (response.url().includes('/assets/') && response.status() >= 300)
               failedAssets.push({status:response.status(),url:new URL(response.url()).pathname});
             if (response.url().includes('/api/uploadthing') && response.request().method() === 'POST') {
@@ -130,7 +134,17 @@ jobs:
               await sleep(400);
             }
             if(uploadError) throw new Error('UploadThing image upload failed: '+uploadError);
-            if(!(await page.getByTestId('post-composer-submit').isEnabled())) throw new Error('Image upload did not finish');
+            if(!(await page.getByTestId('post-composer-submit').isEnabled())) {
+              const previewCount = await page.locator('img[alt="Attached image preview"]').count();
+              const spinnerCount = await page.locator('svg.animate-spin').count();
+              const currentTextLength = (await composer.inputValue()).length;
+              const errors = (await page.locator('p.text-destructive').allTextContents()).map(x=>x.slice(0,80));
+              console.log('Upload UI diagnostics:',JSON.stringify({
+                previewCount,spinnerCount,currentTextLength,errors,
+                submitEnabled:await page.getByTestId('post-composer-submit').isEnabled(),
+              }));
+              throw new Error('Image upload did not finish');
+            }
             await page.getByTestId('post-composer-submit').click();
             await page.getByText(imageText,{exact:true}).first().waitFor({state:'visible',timeout:40000});
             console.log('PASS UploadThing image post published');
