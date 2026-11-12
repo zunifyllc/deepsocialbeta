@@ -242,7 +242,7 @@ export async function moveBookmark(userId: string, bookmarkId: string, collectio
 
 // ------------------------------------------------------------ profiles ---
 const PROFILE_EDITABLE = [
-  "display_name", "bio", "location", "website", "pronouns", "avatar_url", "banner_url", "accent_color", "theme_mode",
+  "username", "display_name", "bio", "location", "website", "pronouns", "avatar_url", "banner_url", "accent_color", "theme_mode",
 ];
 
 export async function updateProfile(userId: string, update: Record<string, string | null>) {

@@ -1,4 +1,5 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState, useRef, useEffect } from "react";
 import { Camera, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,9 +25,11 @@ export const Route = createFileRoute("/_authenticated/settings/profile")({
 });
 
 function EditProfilePage() {
-  const { user, profile: authProfile, signOut } = useAuth();
+  const { user, profile: authProfile, signOut, refreshProfile } = useAuth();
+  const queryClient = useQueryClient();
   const [profile, setProfile] = useState(authProfile);
   const [displayName, setDisplayName] = useState(profile?.display_name ?? "");
+  const [username, setUsername] = useState(profile?.username ?? "");
   const [bio, setBio] = useState(profile?.bio ?? "");
   const [location, setLocation] = useState(profile?.location ?? "");
   const [website, setWebsite] = useState(profile?.website ?? "");
@@ -44,6 +47,7 @@ function EditProfilePage() {
     if (authProfile) {
       setProfile(authProfile);
       setDisplayName(authProfile.display_name ?? "");
+      setUsername(authProfile.username ?? "");
       setBio(authProfile.bio ?? "");
       setLocation(authProfile.location ?? "");
       setWebsite(authProfile.website ?? "");
@@ -83,11 +87,17 @@ function EditProfilePage() {
     void uploadProfileImage(e, "banners");
 
   const handleSave = async () => {
+    const normalizedUsername = username.trim().toLowerCase();
+    if (!/^[a-z0-9_]{3,15}$/.test(normalizedUsername)) {
+      setMessage("Username must be 3–15 characters: letters, numbers, or underscores.");
+      return;
+    }
     setIsLoading(true);
     setMessage("");
     try {
-      await save({
+      const saved = await save({
         data: {
+          username: normalizedUsername,
           display_name: displayName || null,
           bio: bio || null,
           location: location || null,
@@ -97,7 +107,11 @@ function EditProfilePage() {
           banner_url: bannerUrl || null,
         },
       });
-      setMessage("Profile saved.");
+      setProfile(saved);
+      setUsername(saved.username);
+      await refreshProfile();
+      await queryClient.invalidateQueries({ queryKey: ["profile"] });
+      setMessage(saved.username !== profile.username ? `Profile saved. Your new profile URL is /${saved.username}` : "Profile saved.");
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Failed to save profile.");
     } finally {
@@ -165,6 +179,26 @@ function EditProfilePage() {
             maxLength={50}
             className="rounded-md border-border bg-background"
           />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="username">Username</Label>
+          <div className="flex items-center rounded-md border border-border bg-background focus-within:ring-2 focus-within:ring-ring">
+            <span className="pl-3 text-muted-foreground" aria-hidden="true">@</span>
+            <Input
+              id="username"
+              autoComplete="off"
+              value={username}
+              onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 15))}
+              minLength={3}
+              maxLength={15}
+              aria-describedby="username-help"
+              className="border-0 bg-transparent shadow-none focus-visible:ring-0"
+            />
+          </div>
+          <p id="username-help" className="text-xs text-muted-foreground">
+            3–15 letters, numbers, or underscores. Your profile link changes when you update this.
+          </p>
         </div>
 
         <div className="space-y-2">
