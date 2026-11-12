@@ -17,7 +17,7 @@ export const Route = createFileRoute("/_authenticated/home")({
       { name: "description", content: "Your personalized timeline on DeepSocial." },
     ],
   }),
-  loader: ({ context }) => context.queryClient.ensureQueryData(feedQueryOptions("following")),
+  loader: ({ context }) => context.queryClient.ensureQueryData(feedQueryOptions("for-you")),
   component: HomePage,
 });
 
@@ -27,7 +27,7 @@ const feedQueryOptions = (type: FeedTab) => ({
 });
 
 function HomePage() {
-  const [activeTab, setActiveTab] = useState<FeedTab>("following");
+  const [activeTab, setActiveTab] = useState<FeedTab>("for-you");
   const queryClient = useQueryClient();
   const { data: posts } = useSuspenseQuery(feedQueryOptions(activeTab));
   const remove = useServerFn(deletePost);
