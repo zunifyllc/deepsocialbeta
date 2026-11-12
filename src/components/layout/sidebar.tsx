@@ -38,9 +38,9 @@ export function Sidebar() {
     : navItems;
 
   return (
-    <div className="hidden h-full flex-col justify-between border-r border-border bg-background px-2 py-4 md:flex lg:px-4">
+    <div className="hidden h-full min-h-0 flex-col justify-between gap-4 overflow-y-auto border-r border-border bg-background px-2 py-4 md:flex lg:px-3">
       <div className="flex flex-col gap-2">
-        <Link to="/home" className="mb-4 flex items-center gap-3 rounded-full p-3 transition-colors hover:bg-accent lg:justify-start">
+        <Link to="/home" className="mb-2 flex items-center justify-center gap-3 rounded-xl p-3 transition-colors hover:bg-accent lg:justify-start">
           <Waves className="h-8 w-8 shrink-0 text-primary" />
           <span className="hidden text-xl font-bold tracking-tight lg:inline">DeepSocial</span>
         </Link>
@@ -50,27 +50,27 @@ export function Sidebar() {
             ? (profile ? `/${profile.username}` : "/settings/profile")
             : item.href;
           const isActive = location.pathname === destination || location.pathname.startsWith(destination + "/");
-          const className = `flex items-center gap-4 rounded-full p-3 text-xl transition-colors hover:bg-accent ${
-            isActive ? "font-bold" : "font-medium"
+          const className = `flex min-h-11 items-center justify-center gap-3 rounded-xl px-3 py-2.5 text-base transition-colors hover:bg-accent lg:justify-start ${
+            isActive ? "bg-accent font-semibold text-foreground" : "font-medium text-muted-foreground hover:text-foreground"
           }`;
           const label = (
             <>
-              <item.icon className="h-7 w-7" />
+              <item.icon className="h-6 w-6 shrink-0" aria-hidden="true" />
               <span className="hidden lg:inline">{item.label}</span>
             </>
           );
           if (item.label === "Profile") {
             return profile
-              ? <Link key={item.href} to="/$username" params={{ username: profile.username }} className={className}>{label}</Link>
-              : <Link key={item.href} to="/settings/profile" className={className}>{label}</Link>;
+              ? <Link key={item.href} to="/$username" params={{ username: profile.username }} className={className} aria-label={item.label} title={item.label}>{label}</Link>
+              : <Link key={item.href} to="/settings/profile" className={className} aria-label={item.label} title={item.label}>{label}</Link>;
           }
-          return <Link key={item.href} to={item.href} className={className}>{label}</Link>;
+          return <Link key={item.href} to={item.href} className={className} aria-label={item.label} title={item.label}>{label}</Link>;
         })}
 
-        <Button asChild className="mt-4 hidden h-12 w-full rounded-full text-lg font-bold lg:flex">
+        <Button asChild className="mt-3 hidden h-11 w-full rounded-full text-base font-bold lg:flex">
           <Link to="/home" hash="compose">Post</Link>
         </Button>
-        <Button asChild size="icon" className="mt-4 flex h-12 w-12 rounded-full lg:hidden">
+        <Button asChild size="icon" className="mx-auto mt-3 flex h-11 w-11 rounded-full lg:hidden">
           <Link to="/home" hash="compose" aria-label="Compose post">
             <Feather className="h-5 w-5" />
           </Link>
@@ -80,7 +80,9 @@ export function Sidebar() {
       {profile && (
         <button
           onClick={() => signOut()}
-          className="flex items-center gap-3 rounded-full p-3 transition-colors hover:bg-accent"
+          title="Sign out"
+          aria-label="Sign out"
+          className="flex shrink-0 items-center justify-center gap-3 rounded-xl p-2.5 transition-colors hover:bg-accent lg:justify-start"
         >
           <div className="h-10 w-10 overflow-hidden rounded-full bg-muted">
             {profile.avatar_url ? (
