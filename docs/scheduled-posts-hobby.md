@@ -6,7 +6,7 @@ Vercel Hobby only supports daily built-in cron invocations. For minute-level sch
 
 ## Production checklist
 
-1. Deploy the **reviewed and tested** Neon-backed application to production. Ensure `DATABASE_URL` points to the correct production Neon database and its migration containing `public.publish_scheduled_posts()` has been applied. Do not point the external scheduler at an isolated preview database.
+1. Deploy the **reviewed and tested** Neon-backed application to production. Ensure `DATABASE_URL` points to the correct production Neon database **named `deepsocial` (not the default `neondb`)** and its migration containing `public.publish_scheduled_posts()` has been applied. Do not point the external scheduler at an isolated preview database.
 2. In Vercel project Settings → Environment Variables, create a strong random `CRON_SECRET` for **Production**. Redeploy after saving it. Do not reuse an auth cookie or database password.
 3. Confirm the production URL can reach `/api/public/cron/publish-scheduled`. With no secret the endpoint must return HTTP **401**. If Vercel Deployment Protection/SSO intercepts the request, configure the appropriate production access protection or use a suitable public production custom domain while retaining the endpoint's secret check. Do not expose preview deployments or disable all protection unnecessarily.
 4. In cron-job.org, create a cronjob targeting `https://YOUR-PRODUCTION-DOMAIN/api/public/cron/publish-scheduled`, HTTP **GET**, schedule **every minute**.
