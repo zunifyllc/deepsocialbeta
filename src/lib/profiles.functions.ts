@@ -23,7 +23,13 @@ export interface Profile {
   blockState?: "by-me" | "by-them" | null;
 }
 
+const RESERVED_USERNAMES = new Set(["admin", "api", "auth", "home", "explore", "profile", "settings", "messages", "notifications", "bookmarks", "lists", "search", "posts", "post", "privacy", "help", "about", "terms", "login", "signup", "register", "support", "trending", "premium"]);
+
 const profileSchema = z.object({
+  username: z.string().trim().toLowerCase()
+    .regex(/^[a-z0-9_]{3,15}$/, "Username must be 3–15 characters: lowercase letters, numbers, or underscores")
+    .refine((name) => !RESERVED_USERNAMES.has(name), "This username is reserved")
+    .optional(),
   display_name: z.string().max(50).nullish(),
   bio: z.string().max(160).nullish(),
   location: z.string().max(30).nullish(),
@@ -78,6 +84,7 @@ export const updateProfile = createServerFn({ method: "POST" })
     // Only touch the fields the caller actually sent, so the appearance
     // settings screen cannot wipe bio/links and vice versa.
     const update: Record<string, string | null> = {};
+    if (data.username !== undefined) update["username"] = data.username;
     if ("display_name" in data) update["display_name"] = data.display_name ?? null;
     if ("bio" in data) update["bio"] = data.bio ?? null;
     if ("location" in data) update["location"] = data.location ?? null;
@@ -90,7 +97,15 @@ export const updateProfile = createServerFn({ method: "POST" })
 
     const W = await import("./neon/writes.server");
     await W.ensureActor(context.userId);
-    return (await W.updateProfile(context.userId, update)) as unknown as Profile;
+    try {
+      return (await W.updateProfile(context.userId, update)) as unknown as Profile;
+    } catch (error) {
+      // The database unique constraint is authoritative under concurrent requests.
+      if ((error as { code?: string }).code === "23505") {
+        throw new Error("That username is already taken. Please choose another.");
+      }
+      throw error;
+    }
   });
 
 export const togglePinPost = createServerFn({ method: "POST" })
