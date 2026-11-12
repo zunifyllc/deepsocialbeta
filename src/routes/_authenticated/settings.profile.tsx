@@ -7,8 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { AppShell } from "@/components/layout/app-shell";
 import { useAuth } from "@/hooks/use-auth";
-import { supabase } from "@/integrations/supabase/client";
-import { createUploadUrl } from "@/lib/storage.functions";
+import { uploadMediaFile } from "@/lib/media";
 import { updateProfile, getCurrentProfile, type Profile } from "@/lib/profiles.functions";
 import { useServerFn } from "@tanstack/react-start";
 
@@ -35,6 +34,7 @@ function EditProfilePage() {
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url ?? "");
   const [bannerUrl, setBannerUrl] = useState(profile?.banner_url ?? "");
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [message, setMessage] = useState("");
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
@@ -55,28 +55,32 @@ function EditProfilePage() {
 
   if (!user || !profile) return null;
 
-  const uploadFile = async (file: File, bucket: string) => {
-    const { path, token, publicUrl } = await createUploadUrl({
-      data: { bucket: bucket as "avatars" | "banners", fileName: file.name },
-    });
-    const { error } = await supabase.storage.from(bucket).uploadToSignedUrl(path, token, file);
-    if (error) throw error;
-    return publicUrl;
+  const uploadProfileImage = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    purpose: "avatars" | "banners",
+  ) => {
+    const input = e.currentTarget;
+    const file = input.files?.[0];
+    if (!file || isUploading) return;
+    setIsUploading(true);
+    setMessage("");
+    try {
+      const url = await uploadMediaFile(file, user.id, purpose);
+      if (purpose === "avatars") setAvatarUrl(url);
+      else setBannerUrl(url);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Image upload failed");
+    } finally {
+      input.value = "";
+      setIsUploading(false);
+    }
   };
 
-  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const url = await uploadFile(file, "avatars");
-    setAvatarUrl(url);
-  };
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) =>
+    void uploadProfileImage(e, "avatars");
 
-  const handleBannerChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const url = await uploadFile(file, "avatars");
-    setBannerUrl(url);
-  };
+  const handleBannerChange = (e: React.ChangeEvent<HTMLInputElement>) =>
+    void uploadProfileImage(e, "banners");
 
   const handleSave = async () => {
     setIsLoading(true);
@@ -112,10 +116,10 @@ function EditProfilePage() {
         </div>
         <Button
           onClick={handleSave}
-          disabled={isLoading}
+          disabled={isLoading || isUploading}
           className="rounded-full bg-foreground px-5 font-bold text-background hover:bg-foreground/90"
         >
-          {isLoading ? "Saving..." : "Save"}
+          {isUploading ? "Uploading..." : isLoading ? "Saving..." : "Save"}
         </Button>
       </div>
 

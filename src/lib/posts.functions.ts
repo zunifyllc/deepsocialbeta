@@ -53,7 +53,7 @@ const createPostSchema = z.object({
   scheduledAt: z.string().datetime().nullable().optional(),
 });
 
-/** Post reads are served from Neon; mute/block lists still come from Supabase. */
+/** Post reads and mute/block lists are served from Neon. */
 async function readers() {
   const [posts, privacy] = await Promise.all([
     import("./neon/posts.server"),
@@ -74,7 +74,19 @@ export const getFeed = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     const { posts, hidden } = await readers();
-    const opts = { limit: data.limit, hidden, cursor: data.cursor };
+    // Following is scoped to the signed-in user; public discovery remains global.
+    const viewerId =
+      data.type === "following"
+        ? await (await import("./privacy-helpers.server")).getViewerId()
+        : null;
+    if (data.type === "following" && !viewerId) return [] as Post[];
+
+    const opts = {
+      limit: data.limit,
+      hidden,
+      cursor: data.cursor,
+      followingUserId: data.type === "following" ? (viewerId ?? undefined) : undefined,
+    };
     const [plain, reposts] = await Promise.all([
       posts.listFeedPosts(opts),
       posts.listRepostFeedItems(opts),
@@ -86,7 +98,7 @@ export const getPost = createServerFn({ method: "GET" })
   .validator((input) => z.object({ postId: z.string().uuid() }).parse(input))
   .handler(async ({ data }) => {
     const { posts, hidden } = await readers();
-    const found = (await posts.getPostById(data.postId)) as unknown as Post | null;
+    const found = (await posts.getPublishedPostById(data.postId)) as unknown as Post | null;
     if (found?.author && hidden.includes(found.author.id)) return null;
     return found;
   });
@@ -127,8 +139,13 @@ export const createPost = createServerFn({ method: "POST" })
     await W.ensureActor(context.userId);
     if (data.scheduledAt) assertFutureSchedule(data.scheduledAt);
     if (data.parentPostId) {
+      // Never leak scheduled content through early replies/notifications.
+      // Scheduled replies are not supported; only published posts can be
+      // replied to, and the reply must publish immediately.
+      if (data.scheduledAt) throw new Error("Replies cannot be scheduled");
       const parent = await W.postAuthor(data.parentPostId);
-      if (parent && parent.author_id !== context.userId) {
+      if (!parent || parent.status !== "published") throw new Error("Post not found");
+      if (parent.author_id !== context.userId) {
         const { assertNotBlocked } = await import("./privacy-helpers.server");
         await assertNotBlocked(context.userId, parent.author_id);
       }

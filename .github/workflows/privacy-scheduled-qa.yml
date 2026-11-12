@@ -1,0 +1,25 @@
+name: Preview security scheduled post and DM block
+on:
+  push:
+    branches: [test/privacy-scheduled-preview]
+    paths:
+      - .github/workflows/privacy-scheduled-qa.yml
+      - .github/scripts/privacy-scheduled-e2e.mjs
+permissions:
+  contents: read
+jobs:
+  privacy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Verify E2E script syntax
+        run: node --check .github/scripts/privacy-scheduled-e2e.mjs
+      - name: Install isolated browser test runner
+        run: |
+          bun install --frozen-lockfile --ignore-scripts
+          bun add --dev playwright@1.56.1 --ignore-scripts
+          bunx playwright install --with-deps chromium
+      - name: Two-user privacy security checks
+        run: node .github/scripts/privacy-scheduled-e2e.mjs

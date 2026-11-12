@@ -1,6 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { createUploadUrl, deleteOwnMedia, signMediaUrls } from "./storage.functions";
+import { genUploader } from "uploadthing/client";
+import type { UploadRouter } from "./uploadthing.server";
+import { deleteOwnMedia, deleteOwnUploadThingMedia, signMediaUrls } from "./storage.functions";
+
+const { uploadFiles } = genUploader<UploadRouter>();
 
 export const MEDIA_BUCKET = "media";
 export const MAX_MEDIA_PER_POST = 4;
@@ -18,24 +21,31 @@ export function validateMediaFile(file: File): string | null {
   return null;
 }
 
-function randomId() {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
-  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+/** Uploads via UploadThing from the browser; no file bytes pass through Vercel. */
+export async function uploadMediaFile(
+  file: File,
+  _userId: string,
+  purpose: "media" | "avatars" | "banners" = "media",
+): Promise<string> {
+  const problem = validateMediaFile(file);
+  if (problem) throw new Error(problem);
+
+  const endpoint = purpose === "avatars" ? "avatarImage" : purpose === "banners" ? "bannerImage" : "postImage";
+  const uploaded = await uploadFiles(endpoint, { files: [file] });
+  const url = uploaded[0]?.url;
+  if (!url) throw new Error("UploadThing did not return a file URL");
+  return url;
 }
 
-/** Uploads an image into the signed-in user's own media folder and returns its storage path. */
-export async function uploadMediaFile(file: File, _userId: string): Promise<string> {
-  const ext = file.name.includes(".") ? file.name.split(".").pop()!.toLowerCase() : "bin";
-  const { path, token } = await createUploadUrl({ data: { bucket: MEDIA_BUCKET, fileName: `${randomId()}.${ext}` } });
-  const { error } = await supabase.storage
-    .from(MEDIA_BUCKET)
-    .uploadToSignedUrl(path, token, file, { contentType: file.type });
-  if (error) throw error;
-  return path;
-}
-
+/** Deletes only an upload owned by the caller; legacy Supabase paths still work. */
 export async function deleteMediaFile(path: string): Promise<void> {
-  if (isAbsoluteUrl(path)) return;
+  if (isAbsoluteUrl(path)) {
+    const url = new URL(path);
+    if (url.hostname === "utfs.io" || url.hostname.endsWith(".ufs.sh")) {
+      await deleteOwnUploadThingMedia({ data: { url: path } });
+    }
+    return;
+  }
   await deleteOwnMedia({ data: { path } });
 }
 

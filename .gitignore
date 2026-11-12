@@ -30,3 +30,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Never commit local or deployment credentials.
+# Existing tracked .env files must be explicitly untracked separately.
+.env
+.env.*
+!.env.example

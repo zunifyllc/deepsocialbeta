@@ -36,6 +36,9 @@ export const startConversation = createServerFn({ method: "POST" })
     const W = await import("./neon/writes.server");
     if (data.userId === context.userId) throw new Error("You cannot message yourself");
     await W.ensureActor(context.userId);
+    // Blocked users cannot start or re-open conversations in either direction.
+    const { assertNotBlocked } = await import("./privacy-helpers.server");
+    await assertNotBlocked(context.userId, data.userId);
     return { conversationId: await W.getOrCreateConversation(context.userId, data.userId) };
   });
 
@@ -50,7 +53,17 @@ export const sendMessage = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const W = await import("./neon/writes.server");
+    const [{ getConversationFor }, { assertNotBlocked }, W] = await Promise.all([
+      import("./neon/features.server"),
+      import("./privacy-helpers.server"),
+      import("./neon/writes.server"),
+    ]);
+    // A valid session and membership are necessary but not sufficient:
+    // a newly added block must also stop messages to an EXISTING conversation.
+    const conversation = await getConversationFor(context.userId, data.conversationId);
+    const otherId = conversation?.other?.["id"];
+    if (typeof otherId !== "string") throw new Error("Conversation not found");
+    await assertNotBlocked(context.userId, otherId);
     return (await W.sendMessage(context.userId, data.conversationId, data.content)) as unknown as Message;
   });
 

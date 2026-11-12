@@ -11,7 +11,7 @@ const navItems = [
 ];
 
 export function MobileNav() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const location = useLocation();
 
   if (!user) return null;
@@ -19,18 +19,20 @@ export function MobileNav() {
   return (
     <nav className="fixed bottom-0 left-0 z-50 flex w-full items-center justify-around border-t border-border bg-background/80 px-2 py-2 backdrop-blur-md md:hidden">
       {navItems.map((item) => {
-        const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + "/");
-        return (
-          <Link
-            key={item.href}
-            to={item.href}
-            className={`flex flex-col items-center gap-1 rounded-full p-2 transition-colors hover:bg-accent ${
-              isActive ? "font-bold text-foreground" : "text-muted-foreground"
-            }`}
-          >
-            <item.icon className="h-6 w-6" />
-          </Link>
-        );
+        const destination = item.label === "Profile"
+          ? (profile ? `/${profile.username}` : "/settings/profile")
+          : item.href;
+        const isActive = location.pathname === destination || location.pathname.startsWith(destination + "/");
+        const className = `flex flex-col items-center gap-1 rounded-full p-2 transition-colors hover:bg-accent ${
+          isActive ? "font-bold text-foreground" : "text-muted-foreground"
+        }`;
+        const icon = <item.icon className="h-6 w-6" />;
+        if (item.label === "Profile") {
+          return profile
+            ? <Link key={item.href} to="/$username" params={{ username: profile.username }} className={className} aria-label="Profile">{icon}</Link>
+            : <Link key={item.href} to="/settings/profile" className={className} aria-label="Edit profile">{icon}</Link>;
+        }
+        return <Link key={item.href} to={item.href} className={className} aria-label={item.label}>{icon}</Link>;
       })}
     </nav>
   );

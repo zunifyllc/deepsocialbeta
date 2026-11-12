@@ -23,7 +23,7 @@ const exploreQueryOptions = (hashtag: string) => ({
 export const Route = createFileRoute("/explore")({
   staticData: { sitemap: true },
   validateSearch: zodValidator(searchSchema),
-  loaderDeps: ({ search }) => ({ hashtag: search.hashtag }),
+  loaderDeps: ({ search }) => ({ hashtag: search['hashtag'] }),
   head: () => ({
     links: [{ rel: "canonical", href: "https://deepsocial.zunify.site/explore" }],
     meta: [

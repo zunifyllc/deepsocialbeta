@@ -29,6 +29,7 @@ export interface FeedOptions {
   limit: number;
   cursor?: string | undefined;
   hidden: string[];
+  followingUserId?: string | undefined;
 }
 
 export async function listFeedPosts(opts: FeedOptions): Promise<Row[]> {
@@ -36,8 +37,11 @@ export async function listFeedPosts(opts: FeedOptions): Promise<Row[]> {
     `select ${POST_COLUMNS} ${FROM_POSTS}
      where p.status = 'published' and p.parent_post_id is null and ${NOT_HIDDEN}
        and ($2::timestamptz is null or p.created_at < $2::timestamptz)
+       and ($4::uuid is null or p.author_id = $4::uuid or exists (
+         select 1 from follows f where f.follower_id = $4::uuid and f.following_id = p.author_id
+       ))
      order by p.created_at desc limit $3`,
-    [opts.hidden, opts.cursor ?? null, opts.limit],
+    [opts.hidden, opts.cursor ?? null, opts.limit, opts.followingUserId ?? null],
   );
 }
 
@@ -52,7 +56,17 @@ export async function listUserPosts(userId: string, opts: FeedOptions): Promise<
 }
 
 export async function getPostById(postId: string): Promise<Row | null> {
+  // Internal owner-only mutation flows (scheduled-post creation/edit) need to
+  // read drafts. Never expose this reader in a public server function.
   return one(`select ${POST_COLUMNS} ${FROM_POSTS} where p.id = $1::uuid`, [postId]);
+}
+
+/** Public post URL: scheduled posts must not be accessible by guessing UUIDs. */
+export async function getPublishedPostById(postId: string): Promise<Row | null> {
+  return one(
+    `select ${POST_COLUMNS} ${FROM_POSTS} where p.id = $1::uuid and p.status = 'published'`,
+    [postId],
+  );
 }
 
 export async function listReplies(postId: string, hidden: string[]): Promise<Row[]> {
@@ -77,7 +91,7 @@ export async function listLikedPosts(userId: string, limit = 50): Promise<Row[]>
   return q(
     `select ${POST_COLUMNS} ${FROM_POSTS}
      join likes l on l.post_id = p.id
-     where l.user_id = $1::uuid
+     where l.user_id = $1::uuid and p.status = 'published'
      order by l.created_at desc limit $2`,
     [userId, limit],
   );
@@ -86,7 +100,8 @@ export async function listLikedPosts(userId: string, limit = 50): Promise<Row[]>
 export async function getPinnedPost(userId: string): Promise<Row | null> {
   return one(
     `select ${POST_COLUMNS} ${FROM_POSTS}
-     where p.id = (select pinned_post_id from profiles where id = $1::uuid)`,
+     where p.id = (select pinned_post_id from profiles where id = $1::uuid)
+       and p.status = 'published'`,
     [userId],
   );
 }
@@ -110,8 +125,12 @@ export async function listRepostFeedItems(opts: RepostFeedOptions): Promise<Row[
        and ($2::timestamptz is null or r.created_at < $2::timestamptz)
        and ($4::uuid is null or r.user_id = $4::uuid)
        and ($5::uuid is null or r.post_id = $5::uuid)
+       and p.status = 'published'
+       and ($6::uuid is null or r.user_id = $6::uuid or exists (
+         select 1 from follows f where f.follower_id = $6::uuid and f.following_id = r.user_id
+       ))
      order by r.created_at desc limit $3`,
-    [opts.hidden, opts.cursor ?? null, opts.limit, opts.userId ?? null, opts.postId ?? null],
+    [opts.hidden, opts.cursor ?? null, opts.limit, opts.userId ?? null, opts.postId ?? null, opts.followingUserId ?? null],
   );
 
   return rows.map((row) => {
