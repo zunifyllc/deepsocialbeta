@@ -23,7 +23,8 @@ export function MessageComposer({ onSend, disabled }: MessageComposerProps) {
       // Keep the draft so users can retry after an interruption. Expected
       // permission errors (including blocks) should not surface as uncaught
       // promise rejections from the form submit event.
-      toast.error(error instanceof Error ? error.message : "Could not send message");
+      const blocked = error instanceof Error && /block/i.test(error.message);
+      toast.error(blocked ? "You cannot send a message to this account." : "Could not send message. Please try again.");
     } finally {
       setIsSending(false);
     }
