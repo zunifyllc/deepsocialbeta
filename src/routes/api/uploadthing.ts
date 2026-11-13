@@ -32,7 +32,7 @@ async function handle(request: Request): Promise<Response> {
     // A missing/legacy token must not mislead operators with a healthy GET
     // file route list and a mysterious 500 only on real upload requests.
     return Response.json(
-      { error: "Media uploads are not configured. Add an UploadThing API Keys > V7 token to Vercel Preview." },
+      { error: "Media uploads are not configured. Configure the UploadThing V7 token on this deployment." },
       { status: 503, headers: { "Cache-Control": "no-store" } },
     );
   }
