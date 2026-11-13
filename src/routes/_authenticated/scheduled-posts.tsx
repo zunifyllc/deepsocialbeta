@@ -67,6 +67,8 @@ function ScheduledPostsPage() {
   const { data: posts = [], isLoading } = useQuery({
     queryKey: ["scheduled-posts"],
     queryFn: () => fetchScheduled({}),
+    // A scheduled post can publish in another process; refresh without reload.
+    refetchInterval: 30_000,
   });
 
   const invalidate = () => {

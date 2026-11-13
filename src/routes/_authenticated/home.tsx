@@ -24,6 +24,8 @@ export const Route = createFileRoute("/_authenticated/home")({
 const feedQueryOptions = (type: FeedTab) => ({
   queryKey: ["feed", type],
   queryFn: () => getFeed({ data: { type } }),
+  // Pick up freshly published scheduled posts while the timeline remains open.
+  refetchInterval: 60_000,
 });
 
 function HomePage() {
