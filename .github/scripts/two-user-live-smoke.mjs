@@ -101,6 +101,66 @@ try {
     await B.page.getByText(A.username, { exact: false }).first().click();
     await B.page.getByTestId('message-bubble').filter({ hasText: messageText }).waitFor({ timeout: 30000 });
   });
+
+  // Extended regression assertions are made against independent browser sessions.
+  const postUrl = B.page.url();
+  await run('B unlikes A post; state persists after reload', async () => {
+    const like = B.page.getByTestId('like-button').first();
+    await like.locator('svg.fill-current').waitFor({ timeout: 15000 });
+    await like.click();
+    await B.page.waitForTimeout(800);
+    assert.equal(await like.locator('svg.fill-current').count(), 0, 'like must be cleared');
+    await B.page.reload({ waitUntil: 'domcontentloaded' });
+    const newLike = B.page.getByTestId('like-button').first();
+    await newLike.waitFor({ timeout: 20000 });
+    await B.page.waitForTimeout(1200);
+    assert.equal(await newLike.locator('svg.fill-current').count(), 0, 'unlike must persist');
+  });
+  await run('B unfollows A; following state persists', async () => {
+    await B.page.goto(base + '/' + A.username, { waitUntil: 'domcontentloaded' });
+    const following = B.page.getByRole('button', { name: 'Following', exact: true }).first();
+    await following.waitFor({ timeout: 20000 });
+    await following.click();
+    await B.page.getByRole('button', { name: 'Follow', exact: true }).first().waitFor({ timeout: 15000 });
+    await B.page.reload({ waitUntil: 'domcontentloaded' });
+    await B.page.getByRole('button', { name: 'Follow', exact: true }).first().waitFor({ timeout: 15000 });
+  });
+  const reverseText = 'DeepSocial reverse two-user DM ' + suffix();
+  await run('B sends reply DM and A receives it', async () => {
+    await B.page.goto(base + '/messages', { waitUntil: 'domcontentloaded' });
+    await B.page.getByText(A.username, { exact: false }).first().waitFor({ timeout: 20000 });
+    await B.page.getByText(A.username, { exact: false }).first().click();
+    await B.page.getByTestId('message-input').fill(reverseText);
+    await B.page.getByTestId('message-send').click();
+    await B.page.getByTestId('message-bubble').filter({ hasText: reverseText }).waitFor({ timeout: 20000 });
+    await A.page.getByTestId('message-bubble').filter({ hasText: reverseText }).waitFor({ timeout: 25000 });
+  });
+  await run('Mobile home, profile, messages navigation', async () => {
+    await A.page.setViewportSize({ width: 390, height: 844 });
+    await A.page.goto(base + '/home', { waitUntil: 'domcontentloaded' });
+    const nav = A.page.locator('nav').filter({ has: A.page.getByRole('link', { name: 'Messages', exact: true }) }).last();
+    await nav.getByRole('link', { name: 'Profile' }).waitFor({ timeout: 15000 });
+    await nav.getByRole('link', { name: 'Messages' }).click();
+    await A.page.waitForURL(url => new URL(url).pathname === '/messages', { timeout: 20000 });
+    await A.page.getByRole('link', { name: 'Home', exact: true }).last().click();
+    await A.page.waitForURL(url => new URL(url).pathname === '/home', { timeout: 20000 });
+  });
+  await run('B blocks A, A cannot send new DM', async () => {
+    await B.page.goto(base + '/' + A.username, { waitUntil: 'domcontentloaded' });
+    await B.page.locator('main').getByRole('button', { name: 'More options' }).click();
+    await B.page.getByRole('menuitem', { name: 'Block @' + A.username }).click();
+    await B.page.getByRole('alertdialog').getByRole('button', { name: 'Block', exact: true }).click();
+    await B.page.waitForTimeout(1100);
+    await A.page.setViewportSize({ width: 1320, height: 860 });
+    await A.page.goto(base + '/messages', { waitUntil: 'domcontentloaded' });
+    await A.page.getByText(B.username, { exact: false }).first().waitFor({ timeout: 20000 });
+    await A.page.getByText(B.username, { exact: false }).first().click();
+    const shouldNotSend = 'Blocked DM must fail ' + suffix();
+    await A.page.getByTestId('message-input').fill(shouldNotSend);
+    await A.page.getByTestId('message-send').click();
+    await A.page.waitForTimeout(2000);
+    assert.equal(await A.page.getByTestId('message-bubble').filter({ hasText: shouldNotSend }).count(), 0, 'blocked DM must not persist');
+  });
 } catch (error) {
   console.error('Two-user test halted:', String(error).slice(0, 400));
   process.exitCode = 1;
