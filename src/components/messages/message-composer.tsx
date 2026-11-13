@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Send } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
 interface MessageComposerProps {
@@ -18,6 +19,12 @@ export function MessageComposer({ onSend, disabled }: MessageComposerProps) {
     try {
       await onSend(content);
       setValue("");
+    } catch (error) {
+      // Keep the draft so users can retry after an interruption. Expected
+      // permission errors (including blocks) should not surface as uncaught
+      // promise rejections from the form submit event.
+      const blocked = error instanceof Error && /block/i.test(error.message);
+      toast.error(blocked ? "You cannot send a message to this account." : "Could not send message. Please try again.");
     } finally {
       setIsSending(false);
     }
