@@ -76,7 +76,7 @@ try {
   const replyText = 'DeepSocial QA reply ' + suffix();
   await run('User B replies to A post', async () => {
     await B.page.locator('article').filter({ hasText: postText }).first().locator('a[href^="/post/"]').first().click();
-    await B.page.waitForURL(/\\/post\\/[0-9a-f-]+/, { timeout: 20000 });
+    await B.page.waitForURL(url => new URL(url).pathname.startsWith('/post/'), { timeout: 20000 });
     await B.page.getByTestId('post-composer-textarea').fill(replyText);
     await B.page.getByTestId('post-composer-submit').click();
     await B.page.getByText(replyText, { exact: true }).first().waitFor({ timeout: 30000 });
