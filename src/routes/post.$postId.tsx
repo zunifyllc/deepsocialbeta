@@ -14,9 +14,9 @@ import { useServerFn } from "@tanstack/react-start";
 export const Route = createFileRoute("/post/$postId")({
   staticData: { sitemap: true },
   head: ({ params }: { params: { postId: string } }) => ({
-    links: [{ rel: "canonical", href: `https://deepsocial.zunify.site/post/${params.postId}` }],
+    links: [{ rel: "canonical", href: `https://deepsocialbeta.vercel.app/post/${params.postId}` }],
     meta: [
-      { property: "og:url", content: `https://deepsocial.zunify.site/post/${params.postId}` },
+      { property: "og:url", content: `https://deepsocialbeta.vercel.app/post/${params.postId}` },
       { title: "Post / DeepSocial" },
       { name: "description", content: "View post on DeepSocial." },
       { property: "og:title", content: "Post / DeepSocial" },
@@ -24,6 +24,7 @@ export const Route = createFileRoute("/post/$postId")({
     ],
   }),
   loader: async ({ params, context }) => {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(params.postId)) throw notFound();
     const post = await getPost({ data: { postId: params.postId } });
     if (!post) throw notFound();
     await context.queryClient.ensureQueryData(repliesQueryOptions(params.postId));
