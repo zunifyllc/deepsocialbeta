@@ -23,6 +23,31 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Reject tracked environment files
+        shell: bash
+        run: |
+          set -euo pipefail
+          tracked="$(git ls-files | grep -E '(^|/)\.env($|\.)' | grep -v -E '(^|/)\.env\.example        uses: oven-sh/setup-bun@v2
+
+      # package-lock.json predates the current package.json and cannot pass npm ci.
+      # bun.lock matches package.json and is DeepSocial's maintained lockfile.
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # TanStack Router generates the route tree during Vite build.
+      # A first-run typecheck can otherwise flag newly added routes as missing.
+      - name: Production build (Vercel preset)
+        run: NITRO_PRESET=vercel bun run build
+
+      - name: Typecheck
+        run: bunx tsc --noEmit
+ || true)"
+          if [ -n "$tracked" ]; then
+            echo "::error::Environment files must not be tracked. Untrack these paths and rotate any exposed secrets."
+            printf '%s\n' "$tracked"
+            exit 1
+          fi
+
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
 
