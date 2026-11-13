@@ -74,9 +74,11 @@ try {
     await post.getByTestId('like-button').locator('svg.fill-current').waitFor({ timeout: 15000 });
   });
   const replyText = 'DeepSocial QA reply ' + suffix();
+  let postUrl = '';
   await run('User B replies to A post', async () => {
     await B.page.locator('article').filter({ hasText: postText }).first().locator('a[href^="/post/"]').first().click();
     await B.page.waitForURL(url => new URL(url).pathname.startsWith('/post/'), { timeout: 20000 });
+    postUrl = B.page.url();
     await B.page.getByTestId('post-composer-textarea').fill(replyText);
     await B.page.getByTestId('post-composer-submit').click();
     await B.page.getByText(replyText, { exact: true }).first().waitFor({ timeout: 30000 });
@@ -103,8 +105,8 @@ try {
   });
 
   // Extended regression assertions are made against independent browser sessions.
-  const postUrl = B.page.url();
   await run('B unlikes A post; state persists after reload', async () => {
+    await B.page.goto(postUrl, { waitUntil: 'domcontentloaded' });
     const like = B.page.getByTestId('like-button').first();
     await like.locator('svg.fill-current').waitFor({ timeout: 15000 });
     await like.click();
