@@ -8,12 +8,11 @@ const f = createUploadthing();
 type UploadPurpose = "media" | "avatars" | "banners";
 
 function createImageUploader(purpose: UploadPurpose) {
-  // We use the uploaded file URL, not data returned by onUploadComplete.
-  // Do not block the client while UploadThing polls for our Neon callback.
-  // The callback still runs asynchronously to register the file's owner.
+  // Wait for the callback to register file ownership in Neon before resolving
+  // the client upload. Otherwise an immediate delete can race media_assets.
   return f({
     image: { maxFileSize: "8MB", maxFileCount: 1 },
-  }, { awaitServerData: false })
+  }, { awaitServerData: true })
     .middleware(async ({ req, files }) => {
       // UploadThing accepts power-of-two size literals. Enforce our strict 5MB
       // product limit and MIME allow-list BEFORE requesting signed upload URLs.
