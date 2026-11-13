@@ -69,18 +69,14 @@ try {
     await B.page.getByText(postText, { exact: true }).first().waitFor({ timeout: 30000 });
   });
   await run('User B likes user A post', async () => {
-    await B.page.getByText(postText, { exact: true }).first().click();
-    await B.page.getByTestId('like-button').first().click();
-    await delay(900);
-    assert.equal(await B.page.getByTestId('like-button').first().getAttribute('aria-pressed'), 'true');
+    const post = B.page.locator('article').filter({ hasText: postText }).first();
+    await post.getByTestId('like-button').click();
+    await post.getByTestId('like-button').locator('svg.fill-current').waitFor({ timeout: 15000 });
   });
   const replyText = 'DeepSocial QA reply ' + suffix();
   await run('User B replies to A post', async () => {
-    const u = new URL(B.page.url());
-    if (!u.pathname.startsWith('/post/')) {
-      await B.page.goto(base + '/home', { waitUntil: 'domcontentloaded' });
-      await B.page.getByText(postText, { exact: true }).first().click();
-    }
+    await B.page.locator('article').filter({ hasText: postText }).first().locator('a[href^="/post/"]').first().click();
+    await B.page.waitForURL(/\\/post\\/[0-9a-f-]+/, { timeout: 20000 });
     await B.page.getByTestId('post-composer-textarea').fill(replyText);
     await B.page.getByTestId('post-composer-submit').click();
     await B.page.getByText(replyText, { exact: true }).first().waitFor({ timeout: 30000 });
