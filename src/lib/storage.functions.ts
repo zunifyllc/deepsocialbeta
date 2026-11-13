@@ -124,3 +124,29 @@ export const deleteOwnUploadThingMedia = createServerFn({ method: "POST" })
     );
     return { ok: true };
   });
+
+/** List old uploads that are not attached to any post or current profile.
+ * Ownership is enforced in SQL. A short grace period avoids showing a file
+ * that the user is still attaching in a composer or profile editor.
+ */
+export const getMyUnusedUploadThingMedia = createServerFn({ method: "GET" })
+  .middleware([requireAuth])
+  .handler(async ({ context }) => {
+    const { q } = await import("./neon/core.server");
+    return q<{ url: string; purpose: string; created_at: string }>(
+      `select ma.public_url as url, ma.purpose, ma.created_at
+       from public.media_assets ma
+       where ma.owner_id = $1::uuid
+         and ma.created_at < now() - interval '1 minute'
+         and not exists (
+           select 1 from public.posts p where ma.public_url = any(p.media_urls)
+         )
+         and not exists (
+           select 1 from public.profiles p
+           where p.avatar_url = ma.public_url or p.banner_url = ma.public_url
+         )
+       order by ma.created_at desc
+       limit 50`,
+      [context.userId],
+    );
+  });
