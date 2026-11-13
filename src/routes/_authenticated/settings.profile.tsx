@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { AppShell } from "@/components/layout/app-shell";
 import { useAuth } from "@/hooks/use-auth";
 import { uploadMediaFile } from "@/lib/media";
+import { UnusedUploads } from "@/components/profile/unused-uploads";
 import { updateProfile, getCurrentProfile, type Profile } from "@/lib/profiles.functions";
 import { useServerFn } from "@tanstack/react-start";
 
@@ -246,6 +247,8 @@ function EditProfilePage() {
             className="rounded-md border-border bg-background"
           />
         </div>
+
+        <UnusedUploads />
 
         <Button
           variant="outline"
