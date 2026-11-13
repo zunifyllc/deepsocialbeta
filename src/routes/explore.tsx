@@ -25,9 +25,9 @@ export const Route = createFileRoute("/explore")({
   validateSearch: zodValidator(searchSchema),
   loaderDeps: ({ search }) => ({ hashtag: search['hashtag'] }),
   head: () => ({
-    links: [{ rel: "canonical", href: "https://deepsocial.zunify.site/explore" }],
+    links: [{ rel: "canonical", href: "https://deepsocialbeta.vercel.app/explore" }],
     meta: [
-      { property: "og:url", content: "https://deepsocial.zunify.site/explore" },
+      { property: "og:url", content: "https://deepsocialbeta.vercel.app/explore" },
       { title: "Explore / DeepSocial" },
       { name: "description", content: "Discover public posts and trending hashtags on DeepSocial." },
       { property: "og:title", content: "Explore / DeepSocial" },
