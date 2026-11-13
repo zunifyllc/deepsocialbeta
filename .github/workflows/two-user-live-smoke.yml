@@ -2,7 +2,7 @@ name: DeepSocial two-user production smoke
 on:
   push:
     branches:
-      - test/two-user-live-smoke-20261113
+      - test/two-user-extended-20261113
     paths:
       - .github/scripts/two-user-live-smoke.mjs
       - .github/workflows/two-user-live-smoke.yml
