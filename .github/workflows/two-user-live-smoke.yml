@@ -1,0 +1,31 @@
+name: DeepSocial two-user production smoke
+on:
+  push:
+    branches:
+      - test/two-user-live-smoke-20261113
+    paths:
+      - .github/scripts/two-user-live-smoke.mjs
+      - .github/workflows/two-user-live-smoke.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  two-user:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install browser runtime
+        run: |
+          bun install --frozen-lockfile --ignore-scripts
+          bun add --dev playwright@1.56.1 --ignore-scripts
+          bunx playwright install --with-deps chromium
+      - name: Verify script syntax
+        run: node --check .github/scripts/two-user-live-smoke.mjs
+      - name: Two independent users on live production
+        env:
+          DEEPSOCIAL_TEST_BASE: https://deepsocialbeta.vercel.app
+        run: node .github/scripts/two-user-live-smoke.mjs
