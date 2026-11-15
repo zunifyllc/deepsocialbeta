@@ -1,4 +1,6 @@
 import { chromium } from 'playwright';
+import { expect } from 'playwright/test';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { randomBytes } from 'node:crypto';
 import assert from 'node:assert/strict';
 
@@ -8,6 +10,9 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 const runId = process.env.GITHUB_RUN_ID || 'manual';
 const results = [];
 const browserErrors = [];
+const contexts = [];
+const artifactDir = 'test-results/two-user';
+await mkdir(artifactDir, { recursive: true });
 const browser = await chromium.launch({ headless: true });
 const record = (name, result, detail = '') => {
   results.push({ name, result, detail });
@@ -15,6 +20,7 @@ const record = (name, result, detail = '') => {
 };
 async function user(tag) {
   const context = await browser.newContext({ viewport: { width: 1320, height: 860 } });
+  contexts.push({ context, tag });
   const page = await context.newPage();
   page.on('pageerror', e => browserErrors.push(`${tag}: ${e.message.slice(0, 160)}`));
   const username = 'qa' + tag + suffix();
@@ -28,12 +34,16 @@ async function user(tag) {
   await page.getByRole('button', { name: 'Create account' }).click();
   await page.waitForURL(/\/home(?:[?#]|$)/, { timeout: 45000 });
   await page.getByTestId('post-composer-textarea').waitFor({ timeout: 25000 });
+  // Begin traces after signup so generated passwords are not captured.
+  await context.tracing.start({ screenshots: true, snapshots: true, sources: false });
+  contexts.find(item => item.context === context).tracing = true;
   record('Signup and authenticated home for user ' + tag, 'PASS');
   return { context, page, username };
 }
 async function run(name, fn) {
   try {
     await fn();
+    assert.equal(browserErrors.length, 0, 'Unexpected browser page errors: ' + JSON.stringify(browserErrors));
     record(name, 'PASS');
   } catch (error) {
     record(name, 'FAIL', String(error instanceof Error ? error.message : error).slice(0, 300));
@@ -87,6 +97,7 @@ try {
     await A.page.goto(base + '/notifications', { waitUntil: 'domcontentloaded' });
     await A.page.getByText(B.username, { exact: false }).first().waitFor({ timeout: 30000 });
   });
+  let sendEndpoint;
   const messageText = 'DeepSocial two-user DM ' + suffix();
   await run('A sends direct message to B', async () => {
     await A.page.goto(base + '/' + B.username, { waitUntil: 'domcontentloaded' });
@@ -94,7 +105,14 @@ try {
     await A.page.getByTestId('message-button').click();
     await A.page.waitForURL(/\/messages\/[0-9a-f-]+/, { timeout: 20000 });
     await A.page.getByTestId('message-input').fill(messageText);
+    // Learn the actual send endpoint from a successful request, not a guessed
+    // framework route. Restrict subsequent fault injection to this endpoint.
+    const sentRequest = A.page.waitForRequest(request =>
+      request.method() === 'POST' &&
+      new URL(request.url()).origin === new URL(base).origin &&
+      (request.postData() || '').includes(messageText), { timeout: 15000 });
     await A.page.getByTestId('message-send').click();
+    sendEndpoint = (await sentRequest).url();
     await A.page.getByTestId('message-bubble').filter({ hasText: messageText }).waitFor({ timeout: 25000 });
   });
   await run('B receives message in inbox', async () => {
@@ -102,6 +120,40 @@ try {
     await B.page.getByText(A.username, { exact: false }).first().waitFor({ timeout: 30000 });
     await B.page.getByText(A.username, { exact: false }).first().click();
     await B.page.getByTestId('message-bubble').filter({ hasText: messageText }).waitFor({ timeout: 30000 });
+  });
+
+  await run('Network failure preserves DM draft and retry delivers exactly once', async () => {
+    const draft = 'Network retry DM ' + suffix();
+    const input = A.page.getByTestId('message-input');
+    const send = A.page.getByTestId('message-send');
+    let aborted = 0;
+    const interruptSend = async route => {
+      if (route.request().method() === 'POST') {
+        aborted++;
+        await route.abort('failed');
+      } else await route.continue();
+    };
+    await A.page.route(sendEndpoint, interruptSend);
+    try {
+      await input.fill(draft);
+      await send.click();
+      await expect(A.page.getByText('Could not send message. Please try again.', { exact: true })).toBeVisible();
+      await expect(input).toHaveValue(draft);
+      await expect(send).toBeEnabled();
+      assert.ok(aborted > 0, 'fault injection must intercept the send');
+      await expect(A.page.getByTestId('message-bubble').filter({ hasText: draft })).toHaveCount(0);
+    } finally {
+      await A.page.unroute(sendEndpoint, interruptSend);
+    }
+    await send.click();
+    await expect(input).toHaveValue('');
+    await expect(A.page.getByTestId('message-bubble').filter({ hasText: draft })).toHaveCount(1);
+    // Verify server persistence in fresh page loads, for both participants.
+    for (const page of [A.page, B.page]) {
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await expect(page.getByTestId('message-input')).toBeVisible({ timeout: 20000 });
+      await expect(page.getByTestId('message-bubble').filter({ hasText: draft })).toHaveCount(1, { timeout: 20000 });
+    }
   });
 
   // Extended regression assertions are made against independent browser sessions.
@@ -160,14 +212,37 @@ try {
     const shouldNotSend = 'Blocked DM must fail ' + suffix();
     await A.page.getByTestId('message-input').fill(shouldNotSend);
     await A.page.getByTestId('message-send').click();
-    await A.page.waitForTimeout(2000);
-    assert.equal(await A.page.getByTestId('message-bubble').filter({ hasText: shouldNotSend }).count(), 0, 'blocked DM must not persist');
+    await expect(A.page.getByText('You cannot send a message to this account.', { exact: true })).toBeVisible();
+    await expect(A.page.getByTestId('message-input')).toHaveValue(shouldNotSend);
+    await expect(A.page.getByTestId('message-send')).toBeEnabled();
+    await expect(A.page.getByTestId('message-bubble').filter({ hasText: shouldNotSend })).toHaveCount(0);
+    const chatUrl = A.page.url();
+    for (const page of [A.page, B.page]) {
+      await page.goto(chatUrl, { waitUntil: 'domcontentloaded' });
+      // Wait for real persisted history to load before making a negative assertion.
+      await expect(page.getByTestId('message-bubble').filter({ hasText: reverseText })).toHaveCount(1, { timeout: 20000 });
+      await expect(page.getByTestId('message-bubble').filter({ hasText: shouldNotSend })).toHaveCount(0);
+    }
   });
 } catch (error) {
   console.error('Two-user test halted:', String(error).slice(0, 400));
   process.exitCode = 1;
 } finally {
+  if (browserErrors.length) process.exitCode = 1;
+  // Capture evidence on failure, including failures before user() returns.
+  for (const { context, tag, tracing } of contexts) {
+    if (process.exitCode) {
+      for (const [index, page] of context.pages().entries()) {
+        await page.screenshot({ path: `${artifactDir}/${tag}-${index}.png`, fullPage: true,
+          mask: [page.locator('input[type="password"], input[type="email"]')] }).catch(() => {});
+      }
+    }
+    if (tracing) await context.tracing.stop(process.exitCode
+      ? { path: `${artifactDir}/${tag}-trace.zip` } : {}).catch(() => {});
+  }
+  await writeFile(`${artifactDir}/results.json`, JSON.stringify({ results, browserErrors, failed: Boolean(process.exitCode) }, null, 2));
   console.log('RESULTS ' + JSON.stringify(results));
   console.log('BROWSER_ERRORS ' + JSON.stringify(browserErrors.slice(0, 12)));
   await browser.close();
 }
+

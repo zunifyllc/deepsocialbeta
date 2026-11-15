@@ -1,18 +1,47 @@
 name: DeepSocial two-user production smoke
 on:
+  pull_request:
+    paths:
+      - .github/scripts/two-user-live-smoke.mjs
+      - .github/workflows/two-user-live-smoke.yml
   push:
     branches:
-      - test/two-user-extended-20261113
+      - qa/dm-regression-20261115
     paths:
       - .github/scripts/two-user-live-smoke.mjs
       - .github/workflows/two-user-live-smoke.yml
   workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Explicit deployed URL to test (creates temporary QA accounts/content)'
+        required: true
+        default: https://deepsocialbeta.vercel.app
+        type: string
 
 permissions:
   contents: read
+  statuses: read
+
+concurrency:
+  group: two-user-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
+  syntax:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node --check .github/scripts/two-user-live-smoke.mjs
+
   two-user:
+    # PR checks never create production data automatically. Use dispatch for
+    # subsequent deployed previews or production. This QA branch targets its
+    # automatic PR preview and waits for Vercel to finish the exact commit.
+    if: github.event_name != 'pull_request'
+    needs: syntax
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -23,9 +52,28 @@ jobs:
           bun install --frozen-lockfile --ignore-scripts
           bun add --dev playwright@1.56.1 --ignore-scripts
           bunx playwright install --with-deps chromium
-      - name: Verify script syntax
-        run: node --check .github/scripts/two-user-live-smoke.mjs
-      - name: Two independent users on live production
+      - name: Wait for this commit's Vercel preview
+        if: github.event_name == 'push'
         env:
-          DEEPSOCIAL_TEST_BASE: https://deepsocialbeta.vercel.app
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for attempt in $(seq 1 60); do
+            state=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/status" --jq '[.statuses[] | select(.context == "Vercel")][0].state // "pending"')
+            if [ "$state" = success ]; then exit 0; fi
+            if [ "$state" = failure ] || [ "$state" = error ]; then exit 1; fi
+            sleep 5
+          done
+          echo "Vercel preview did not become ready for this commit"
+          exit 1
+      - name: Two independent users on deployed application
+        env:
+          DEEPSOCIAL_TEST_BASE: ${{ inputs.base_url || 'https://deepsocialbeta-git-qa-dm-regression-20261115-zunifyllc.vercel.app' }}
         run: node .github/scripts/two-user-live-smoke.mjs
+      - name: Preserve regression results and failure evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: two-user-results-${{ github.run_id }}-${{ github.run_attempt }}
+          path: test-results/two-user/
+          retention-days: 3
+          if-no-files-found: warn
